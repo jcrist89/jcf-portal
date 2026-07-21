@@ -141,20 +141,20 @@ export function ProgramLogger({
                 )}
               </div>
               <div className="flex flex-col gap-1.5">
-                <div className="grid grid-cols-[2rem_1fr_1fr_1fr] gap-2 text-[10px] uppercase text-jcf-gray tracking-wider">
+                <div className="grid grid-cols-[1.25rem_1fr_1fr_1fr] gap-1.5 sm:gap-2 text-[10px] uppercase text-jcf-gray tracking-wider">
                   <span>Set</span>
                   <span>Reps</span>
                   <span>Weight</span>
                   <span>RPE</span>
                 </div>
                 {sets[ex.name]?.map((s, idx) => (
-                  <div key={idx} className="grid grid-cols-[2rem_1fr_1fr_1fr] gap-2">
-                    <span className="text-jcf-gray text-sm pt-2">{idx + 1}</span>
+                  <div key={idx} className="grid grid-cols-[1.25rem_1fr_1fr_1fr] gap-1.5 sm:gap-2 items-center">
+                    <span className="text-jcf-gray text-sm">{idx + 1}</span>
                     <input
                       inputMode="numeric"
                       value={s.reps}
                       onChange={(e) => updateSet(ex.name, idx, "reps", e.target.value)}
-                      className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
                       inputMode="decimal"
@@ -163,13 +163,13 @@ export function ProgramLogger({
                       placeholder={
                         last?.exercise.sets[idx]?.weight != null ? String(last.exercise.sets[idx].weight) : undefined
                       }
-                      className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
                       inputMode="decimal"
                       value={s.rpe}
                       onChange={(e) => updateSet(ex.name, idx, "rpe", e.target.value)}
-                      className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                   </div>
                 ))}
