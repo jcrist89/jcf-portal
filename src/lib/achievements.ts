@@ -213,19 +213,27 @@ function goalMilestone(description: string): NewAchievement {
 
 export function runAchievementChecks(
   ctx: AchievementContext,
-  opts: { newPr?: PR } = {}
+  opts: { newPr?: PR; newPrs?: PR[] } = {}
 ): NewAchievement[] {
   const results = [
     ...checkFirstWorkout(ctx),
     ...checkWorkoutMilestones(ctx),
     ...checkStreaks(ctx),
     ...(opts.newPr ? checkPrHit(ctx, opts.newPr) : []),
+    ...(opts.newPrs ?? []).flatMap((p) => checkPrHit(ctx, p)),
     ...checkFirstCheckinAfter30Days(ctx),
     ...checkGoalMilestone(ctx),
   ];
-  // de-dupe by type in case two rules somehow collide in one pass
+  // De-dupe one-time badges by type. "pr_hit" is deliberately exempt — a single
+  // workout can set new bests on multiple lifts at once (e.g. squat + bench both
+  // PR the same day), and each one deserves its own toast/achievement row.
   const seen = new Set<string>();
-  return results.filter((r) => (seen.has(r.type) ? false : (seen.add(r.type), true)));
+  return results.filter((r) => {
+    if (r.type === "pr_hit") return true;
+    if (seen.has(r.type)) return false;
+    seen.add(r.type);
+    return true;
+  });
 }
 
 export interface CatalogEntry {

@@ -20,6 +20,11 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
     .filter((m) => m.waist != null)
     .map((m) => ({ date: m.date.slice(5), waist: m.waist }));
 
+  // Union of the default lift list and every lift that's actually shown up in
+  // this client's PR history (auto-detected or manually logged), sorted for
+  // stable chart ordering.
+  const allLifts = Array.from(new Set([...LIFTS, ...prs.map((p) => p.lift)])).sort();
+
   return (
     <div>
       <div className="flex gap-2 mb-6">
@@ -52,7 +57,9 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
 
       {tab === "prs" && (
         <>
-          {LIFTS.map((lift) => {
+          {/* Auto-detected from workout logs, plus anything manually logged below — no
+              hardcoded lift list, so any exercise that's ever set a new best gets its own chart. */}
+          {allLifts.map((lift) => {
             const data = prs
               .filter((p) => p.lift === lift)
               .map((p) => ({ date: p.date.slice(5), weight: p.weight }));
@@ -65,7 +72,12 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
               <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
                 <span>{label(p.lift)}</span>
                 <span className="text-jcf-gold">{p.weight} lb x {p.reps}</span>
-                <span className="text-jcf-gray">{p.date}</span>
+                <span className="text-jcf-gray text-right">
+                  {p.date}
+                  {p.notes === "Auto-detected from workout log" && (
+                    <span className="block text-[10px] uppercase tracking-wider text-jcf-gray/70">auto</span>
+                  )}
+                </span>
               </div>
             ))}
           </div>

@@ -36,3 +36,61 @@ export function formatSets(exercise: ExerciseLog): string {
     })
     .join(", ");
 }
+
+/**
+ * Best-ever weight recorded for a given exercise across a set of completed logs
+ * (ties broken by higher reps, then most recent). Returns null if the exercise
+ * has never been logged with a valid weight before.
+ */
+export function bestWeightForExercise(
+  logs: WorkoutLog[],
+  exerciseName: string,
+  excludeLogId?: string
+): { weight: number; reps: number; date: string } | null {
+  let best: { weight: number; reps: number; date: string } | null = null;
+  for (const log of logs) {
+    if (excludeLogId && log.id === excludeLogId) continue;
+    if (!log.completed) continue;
+    const match = log.exercises_completed.find((e) => e.name === exerciseName);
+    if (!match) continue;
+    for (const s of match.sets) {
+      if (s.weight == null || s.weight <= 0) continue;
+      const reps = s.reps ?? 0;
+      if (!best || s.weight > best.weight || (s.weight === best.weight && reps > best.reps)) {
+        best = { weight: s.weight, reps, date: log.date };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Auto-PR detection: compares the exercises from a workout that's about to be
+ * saved against the client's prior logged history (excluding this workout) and
+ * returns one candidate per exercise that set a new all-time-best weight.
+ * This is what lets the app record PRs automatically at log time instead of
+ * requiring a separate manual "Log New PR" entry.
+ */
+export function detectNewPRs(
+  priorLogs: WorkoutLog[],
+  justLoggedExercises: ExerciseLog[]
+): Array<{ lift: string; weight: number; reps: number }> {
+  const out: Array<{ lift: string; weight: number; reps: number }> = [];
+  for (const ex of justLoggedExercises) {
+    let sessionBest: { weight: number; reps: number } | null = null;
+    for (const s of ex.sets) {
+      if (s.weight == null || s.weight <= 0) continue;
+      const reps = s.reps ?? 0;
+      if (!sessionBest || s.weight > sessionBest.weight || (s.weight === sessionBest.weight && reps > sessionBest.reps)) {
+        sessionBest = { weight: s.weight, reps };
+      }
+    }
+    if (!sessionBest) continue;
+
+    const priorBest = bestWeightForExercise(priorLogs, ex.name);
+    if (priorBest && sessionBest.weight > priorBest.weight) {
+      out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps });
+    }
+  }
+  return out;
+}

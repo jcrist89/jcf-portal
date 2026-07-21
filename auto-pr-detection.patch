@@ -1,0 +1,220 @@
+diff --git a/src/app/api/workouts/route.ts b/src/app/api/workouts/route.ts
+index 6780923..d762d54 100644
+--- a/src/app/api/workouts/route.ts
++++ b/src/app/api/workouts/route.ts
+@@ -1,7 +1,8 @@
+ import { NextRequest, NextResponse } from "next/server";
+ import { supabaseForRequest } from "@/lib/supabase/server";
+ import { runAchievementChecks } from "@/lib/achievements";
+-import type { Profile } from "@/lib/types";
++import { detectNewPRs } from "@/lib/workoutHistory";
++import type { Profile, WorkoutLog } from "@/lib/types";
+
+ export async function POST(req: NextRequest) {
+   const ctx = await supabaseForRequest();
+@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
+   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+
+   const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
++  const exercisesCompleted = body.exercisesCompleted ?? [];
++
++  // Snapshot the client's history *before* inserting this workout, so PR
++  // detection below compares against what came before, not the new log itself.
++  const { data: priorLogs } = await client
++    .from("workout_logs")
++    .select("*")
++    .eq("profile_id", profileId);
+
+   const { data: log, error } = await client
+     .from("workout_logs")
+@@ -20,7 +29,7 @@ export async function POST(req: NextRequest) {
+       program_id: body.programId ?? null,
+       date: body.date ?? new Date().toISOString().slice(0, 10),
+       day_label: body.dayLabel ?? null,
+-      exercises_completed: body.exercisesCompleted ?? [],
++      exercises_completed: exercisesCompleted,
+       completed: body.completed ?? true,
+     })
+     .select()
+@@ -30,15 +39,36 @@ export async function POST(req: NextRequest) {
+     return NextResponse.json({ error: error?.message ?? "Could not save workout." }, { status: 500 });
+   }
+
+-  const newAchievements = await checkAndAwardAchievements(client, profileId);
++  // Auto-detect PRs: any exercise in this workout that beat the client's prior
++  // all-time-best weight gets recorded automatically — no manual PR entry needed.
++  const prCandidates = body.completed === false ? [] : detectNewPRs((priorLogs ?? []) as WorkoutLog[], exercisesCompleted);
++  let newPrs: any[] = [];
++  if (prCandidates.length > 0) {
++    const { data: inserted } = await client
++      .from("prs")
++      .insert(
++        prCandidates.map((c) => ({
++          profile_id: profileId,
++          lift: c.lift,
++          weight: c.weight,
++          reps: c.reps,
++          date: log.date,
++          notes: "Auto-detected from workout log",
++        }))
++      )
++      .select();
++    newPrs = inserted ?? [];
++  }
++
++  const newAchievements = await checkAndAwardAchievements(client, profileId, { newPrs });
+
+-  return NextResponse.json({ workoutLog: log, newAchievements });
++  return NextResponse.json({ workoutLog: log, newPrs, newAchievements });
+ }
+
+ export async function checkAndAwardAchievements(
+   client: any,
+   profileId: string,
+-  opts: { newPr?: any } = {}
++  opts: { newPr?: any; newPrs?: any[] } = {}
+ ) {
+   const [{ data: profile }, { data: existing }, { data: workoutLogs }, { data: measurements }, { data: prs }] =
+     await Promise.all([
+diff --git a/src/components/ProgressView.tsx b/src/components/ProgressView.tsx
+index e30a421..622de3c 100644
+--- a/src/components/ProgressView.tsx
++++ b/src/components/ProgressView.tsx
+@@ -20,6 +20,11 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
+     .filter((m) => m.waist != null)
+     .map((m) => ({ date: m.date.slice(5), waist: m.waist }));
+
++  // Union of the default lift list and every lift that's actually shown up in
++  // this client's PR history (auto-detected or manually logged), sorted for
++  // stable chart ordering.
++  const allLifts = Array.from(new Set([...LIFTS, ...prs.map((p) => p.lift)])).sort();
++
+   return (
+     <div>
+       <div className="flex gap-2 mb-6">
+@@ -52,7 +57,9 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
+
+       {tab === "prs" && (
+         <>
+-          {LIFTS.map((lift) => {
++          {/* Auto-detected from workout logs, plus anything manually logged below — no
++              hardcoded lift list, so any exercise that's ever set a new best gets its own chart. */}
++          {allLifts.map((lift) => {
+             const data = prs
+               .filter((p) => p.lift === lift)
+               .map((p) => ({ date: p.date.slice(5), weight: p.weight }));
+@@ -65,7 +72,12 @@ export function ProgressView({ measurements, prs }: { measurements: Measurement[
+               <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
+                 <span>{label(p.lift)}</span>
+                 <span className="text-jcf-gold">{p.weight} lb x {p.reps}</span>
+-                <span className="text-jcf-gray">{p.date}</span>
++                <span className="text-jcf-gray text-right">
++                  {p.date}
++                  {p.notes === "Auto-detected from workout log" && (
++                    <span className="block text-[10px] uppercase tracking-wider text-jcf-gray/70">auto</span>
++                  )}
++                </span>
+               </div>
+             ))}
+           </div>
+diff --git a/src/lib/achievements.ts b/src/lib/achievements.ts
+index 1506755..ab20555 100644
+--- a/src/lib/achievements.ts
++++ b/src/lib/achievements.ts
+@@ -213,19 +213,27 @@ function goalMilestone(description: string): NewAchievement {
+
+ export function runAchievementChecks(
+   ctx: AchievementContext,
+-  opts: { newPr?: PR } = {}
++  opts: { newPr?: PR; newPrs?: PR[] } = {}
+ ): NewAchievement[] {
+   const results = [
+     ...checkFirstWorkout(ctx),
+     ...checkWorkoutMilestones(ctx),
+     ...checkStreaks(ctx),
+     ...(opts.newPr ? checkPrHit(ctx, opts.newPr) : []),
++    ...(opts.newPrs ?? []).flatMap((p) => checkPrHit(ctx, p)),
+     ...checkFirstCheckinAfter30Days(ctx),
+     ...checkGoalMilestone(ctx),
+   ];
+-  // de-dupe by type in case two rules somehow collide in one pass
++  // De-dupe one-time badges by type. "pr_hit" is deliberately exempt — a single
++  // workout can set new bests on multiple lifts at once (e.g. squat + bench both
++  // PR the same day), and each one deserves its own toast/achievement row.
+   const seen = new Set<string>();
+-  return results.filter((r) => (seen.has(r.type) ? false : (seen.add(r.type), true)));
++  return results.filter((r) => {
++    if (r.type === "pr_hit") return true;
++    if (seen.has(r.type)) return false;
++    seen.add(r.type);
++    return true;
++  });
+ }
+
+ export interface CatalogEntry {
+diff --git a/src/lib/workoutHistory.ts b/src/lib/workoutHistory.ts
+index f4f96b0..aa7879a 100644
+--- a/src/lib/workoutHistory.ts
++++ b/src/lib/workoutHistory.ts
+@@ -36,3 +36,61 @@ export function formatSets(exercise: ExerciseLog): string {
+     })
+     .join(", ");
+ }
++
++/**
++ * Best-ever weight recorded for a given exercise across a set of completed logs
++ * (ties broken by higher reps, then most recent). Returns null if the exercise
++ * has never been logged with a valid weight before.
++ */
++export function bestWeightForExercise(
++  logs: WorkoutLog[],
++  exerciseName: string,
++  excludeLogId?: string
++): { weight: number; reps: number; date: string } | null {
++  let best: { weight: number; reps: number; date: string } | null = null;
++  for (const log of logs) {
++    if (excludeLogId && log.id === excludeLogId) continue;
++    if (!log.completed) continue;
++    const match = log.exercises_completed.find((e) => e.name === exerciseName);
++    if (!match) continue;
++    for (const s of match.sets) {
++      if (s.weight == null || s.weight <= 0) continue;
++      const reps = s.reps ?? 0;
++      if (!best || s.weight > best.weight || (s.weight === best.weight && reps > best.reps)) {
++        best = { weight: s.weight, reps, date: log.date };
++      }
++    }
++  }
++  return best;
++}
++
++/**
++ * Auto-PR detection: compares the exercises from a workout that's about to be
++ * saved against the client's prior logged history (excluding this workout) and
++ * returns one candidate per exercise that set a new all-time-best weight.
++ * This is what lets the app record PRs automatically at log time instead of
++ * requiring a separate manual "Log New PR" entry.
++ */
++export function detectNewPRs(
++  priorLogs: WorkoutLog[],
++  justLoggedExercises: ExerciseLog[]
++): Array<{ lift: string; weight: number; reps: number }> {
++  const out: Array<{ lift: string; weight: number; reps: number }> = [];
++  for (const ex of justLoggedExercises) {
++    let sessionBest: { weight: number; reps: number } | null = null;
++    for (const s of ex.sets) {
++      if (s.weight == null || s.weight <= 0) continue;
++      const reps = s.reps ?? 0;
++      if (!sessionBest || s.weight > sessionBest.weight || (s.weight === sessionBest.weight && reps > sessionBest.reps)) {
++        sessionBest = { weight: s.weight, reps };
++      }
++    }
++    if (!sessionBest) continue;
++
++    const priorBest = bestWeightForExercise(priorLogs, ex.name);
++    if (priorBest && sessionBest.weight > priorBest.weight) {
++      out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps });
++    }
++  }
++  return out;
++}

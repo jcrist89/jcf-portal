@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { runAchievementChecks } from "@/lib/achievements";
-import type { Profile } from "@/lib/types";
+import { detectNewPRs } from "@/lib/workoutHistory";
+import type { Profile, WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
   const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
+  const exercisesCompleted = body.exercisesCompleted ?? [];
+
+  // Snapshot the client's history *before* inserting this workout, so PR
+  // detection below compares against what came before, not the new log itself.
+  const { data: priorLogs } = await client
+    .from("workout_logs")
+    .select("*")
+    .eq("profile_id", profileId);
 
   const { data: log, error } = await client
     .from("workout_logs")
@@ -20,7 +29,7 @@ export async function POST(req: NextRequest) {
       program_id: body.programId ?? null,
       date: body.date ?? new Date().toISOString().slice(0, 10),
       day_label: body.dayLabel ?? null,
-      exercises_completed: body.exercisesCompleted ?? [],
+      exercises_completed: exercisesCompleted,
       completed: body.completed ?? true,
     })
     .select()
@@ -30,15 +39,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Could not save workout." }, { status: 500 });
   }
 
-  const newAchievements = await checkAndAwardAchievements(client, profileId);
+  // Auto-detect PRs: any exercise in this workout that beat the client's prior
+  // all-time-best weight gets recorded automatically — no manual PR entry needed.
+  const prCandidates = body.completed === false ? [] : detectNewPRs((priorLogs ?? []) as WorkoutLog[], exercisesCompleted);
+  let newPrs: any[] = [];
+  if (prCandidates.length > 0) {
+    const { data: inserted } = await client
+      .from("prs")
+      .insert(
+        prCandidates.map((c) => ({
+          profile_id: profileId,
+          lift: c.lift,
+          weight: c.weight,
+          reps: c.reps,
+          date: log.date,
+          notes: "Auto-detected from workout log",
+        }))
+      )
+      .select();
+    newPrs = inserted ?? [];
+  }
 
-  return NextResponse.json({ workoutLog: log, newAchievements });
+  const newAchievements = await checkAndAwardAchievements(client, profileId, { newPrs });
+
+  return NextResponse.json({ workoutLog: log, newPrs, newAchievements });
 }
 
 export async function checkAndAwardAchievements(
   client: any,
   profileId: string,
-  opts: { newPr?: any } = {}
+  opts: { newPr?: any; newPrs?: any[] } = {}
 ) {
   const [{ data: profile }, { data: existing }, { data: workoutLogs }, { data: measurements }, { data: prs }] =
     await Promise.all([
