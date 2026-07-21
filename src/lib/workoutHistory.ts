@@ -1,12 +1,5 @@
 import type { ExerciseLog, WorkoutLog } from "@/lib/types";
 
-/**
- * Finds the most recent logged performance of a given exercise (by name) across
- * a client's full workout history. `logs` is expected to already be sorted most
- * recent first (date descending), which is how it's fetched everywhere in the app.
- * This is what makes progression possible — "last time you did Back Squat" —
- * regardless of which week/day it was logged under.
- */
 export function lastPerformanceFor(
   logs: WorkoutLog[],
   exerciseName: string,
@@ -23,7 +16,6 @@ export function lastPerformanceFor(
   return null;
 }
 
-/** Compact human-readable summary of a set list, e.g. "185x5, 185x5, 190x4". */
 export function formatSets(exercise: ExerciseLog): string {
   return exercise.sets
     .filter((s) => s.weight != null || s.reps != null)
@@ -37,11 +29,6 @@ export function formatSets(exercise: ExerciseLog): string {
     .join(", ");
 }
 
-/**
- * Best-ever weight recorded for a given exercise across a set of completed logs
- * (ties broken by higher reps, then most recent). Returns null if the exercise
- * has never been logged with a valid weight before.
- */
 export function bestWeightForExercise(
   logs: WorkoutLog[],
   exerciseName: string,
@@ -64,13 +51,6 @@ export function bestWeightForExercise(
   return best;
 }
 
-/**
- * Auto-PR detection: compares the exercises from a workout that's about to be
- * saved against the client's prior logged history (excluding this workout) and
- * returns one candidate per exercise that set a new all-time-best weight.
- * This is what lets the app record PRs automatically at log time instead of
- * requiring a separate manual "Log New PR" entry.
- */
 export function detectNewPRs(
   priorLogs: WorkoutLog[],
   justLoggedExercises: ExerciseLog[]
@@ -88,6 +68,8 @@ export function detectNewPRs(
     if (!sessionBest) continue;
 
     const priorBest = bestWeightForExercise(priorLogs, ex.name);
+    // No prior best means this is the first time this exercise has ever been
+    // logged for this client — that counts as a PR too, not just beating a number.
     if (!priorBest || sessionBest.weight > priorBest.weight) {
       out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps });
     }
