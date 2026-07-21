@@ -5,6 +5,7 @@ import type { FlatDay } from "@/lib/program";
 import type { WorkoutLog } from "@/lib/types";
 import { AchievementToast } from "@/components/AchievementToast";
 import { lastPerformanceFor, formatSets } from "@/lib/workoutHistory";
+import { workingWeight } from "@/lib/trainingMax";
 
 interface SetInput {
   reps: string;
@@ -12,16 +13,28 @@ interface SetInput {
   rpe: string;
 }
 
-function buildInitialSets(day: FlatDay, history: WorkoutLog[]): Record<string, SetInput[]> {
+function buildInitialSets(
+  day: FlatDay,
+  history: WorkoutLog[],
+  trainingMaxes: Record<string, number>
+): Record<string, SetInput[]> {
   const map: Record<string, SetInput[]> = {};
   for (const ex of day.exercises) {
     const n = typeof ex.sets === "number" ? ex.sets : parseInt(String(ex.sets), 10) || 1;
     const last = lastPerformanceFor(history, ex.name);
+    const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
+    const prescribedWeight = tm != null && ex.percentOfTm != null ? workingWeight(tm, ex.percentOfTm) : null;
+    const prescribedReps = parseInt(String(ex.reps), 10);
     map[ex.name] = Array.from({ length: n }, (_, i) => {
       const lastSet = last?.exercise.sets[i];
       return {
-        reps: "",
-        weight: lastSet?.weight != null ? String(lastSet.weight) : "",
+        reps: prescribedWeight != null && !Number.isNaN(prescribedReps) ? String(prescribedReps) : "",
+        weight:
+          prescribedWeight != null
+            ? String(prescribedWeight)
+            : lastSet?.weight != null
+            ? String(lastSet.weight)
+            : "",
         rpe: "",
       };
     });
@@ -34,24 +47,31 @@ export function ProgramLogger({
   days,
   defaultIndex,
   recentLogs,
+  trainingMaxes = {},
 }: {
   programId: string;
   days: FlatDay[];
   defaultIndex: number;
   recentLogs: WorkoutLog[];
+  trainingMaxes?: Record<string, number>;
 }) {
   const [dayIndex, setDayIndex] = useState(defaultIndex);
   const day = days[dayIndex];
 
-  const initialSets = useMemo(() => (day ? buildInitialSets(day, recentLogs) : {}), [day, recentLogs]);
+  const initialSets = useMemo(
+    () => (day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}),
+    [day, recentLogs, trainingMaxes]
+  );
   const [sets, setSets] = useState<Record<string, SetInput[]>>(initialSets);
+  const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ title: string; description: string }[] | null>(null);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
   function changeDay(i: number) {
     setDayIndex(i);
-    setSets(buildInitialSets(days[i], recentLogs));
+    setSets(buildInitialSets(days[i], recentLogs, trainingMaxes));
+    setTmResults({});
   }
 
   function updateSet(exName: string, idx: number, field: keyof SetInput, value: string) {
@@ -61,6 +81,26 @@ export function ProgramLogger({
       next[exName][idx] = { ...next[exName][idx], [field]: value };
       return next;
     });
+  }
+
+  function markResult(ex: FlatDay["exercises"][number], result: "hit" | "miss") {
+    setTmResults((prev) => ({ ...prev, [ex.name]: result }));
+    const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
+    if (tm == null || ex.percentOfTm == null) return;
+    const prescribedWeight = workingWeight(tm, ex.percentOfTm);
+    const prescribedReps = parseInt(String(ex.reps), 10);
+    if (result === "hit") {
+      // Confirm every set landed at the prescribed weight/reps (unless the
+      // coach/client already typed an audible adjustment for a specific set).
+      setSets((prev) => ({
+        ...prev,
+        [ex.name]: prev[ex.name].map((s) => ({
+          ...s,
+          weight: s.weight || String(prescribedWeight),
+          reps: s.reps || (Number.isNaN(prescribedReps) ? s.reps : String(prescribedReps)),
+        })),
+      }));
+    }
   }
 
   async function save() {
@@ -76,6 +116,10 @@ export function ProgramLogger({
         })),
       }));
 
+      const trainingMaxAdjustments = day.exercises
+        .filter((ex) => ex.liftKey && tmResults[ex.name])
+        .map((ex) => ({ lift: ex.liftKey, hit: tmResults[ex.name] === "hit" }));
+
       const res = await fetch("/api/workouts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +128,7 @@ export function ProgramLogger({
           dayLabel: `Week ${day.week} — ${day.label}`,
           exercisesCompleted,
           completed: true,
+          trainingMaxAdjustments,
         }),
       });
       const data = await res.json();
@@ -122,6 +167,11 @@ export function ProgramLogger({
       <div className="flex flex-col gap-4 mb-6">
         {day.exercises.map((ex) => {
           const last = lastPerformanceFor(recentLogs, ex.name);
+          const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
+          const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
+          const prescribedWeight = isTmDriven ? workingWeight(tm as number, ex.percentOfTm as number) : null;
+          const result = tmResults[ex.name];
+
           return (
             <div key={ex.name} className="bg-jcf-panel border border-white/10 rounded-sm p-4">
               <div className="flex items-baseline justify-between mb-1">
@@ -131,6 +181,19 @@ export function ProgramLogger({
                 </span>
               </div>
               {ex.notes && <p className="text-xs text-jcf-gray mb-2">{ex.notes}</p>}
+
+              {isTmDriven && (
+                <div className="flex items-baseline justify-between mb-3 pb-3 border-b border-white/10">
+                  <span className="text-xs text-jcf-gray">
+                    {ex.percentOfTm}% of {tm} lb training max
+                  </span>
+                  <span className="text-jcf-gold font-display text-xl">
+                    {prescribedWeight}
+                    <span className="text-xs text-jcf-gray font-sans ml-1">lb / set</span>
+                  </span>
+                </div>
+              )}
+
               <div className="text-xs mb-3">
                 {last ? (
                   <span className="text-jcf-gold">
@@ -174,6 +237,41 @@ export function ProgramLogger({
                   </div>
                 ))}
               </div>
+
+              {isTmDriven && (
+                <div className="mt-4">
+                  <p className="text-[11px] text-jcf-gray mb-2">
+                    Adjust weight or reps above if you called an audible, then mark the result.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => markResult(ex, "hit")}
+                      className={`flex-1 py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border ${
+                        result === "hit"
+                          ? "bg-green-600/80 border-green-500 text-white"
+                          : "border-white/15 text-jcf-gray hover:border-green-500/60"
+                      }`}
+                    >
+                      Hit — All Reps at Weight
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => markResult(ex, "miss")}
+                      className={`flex-1 py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border ${
+                        result === "miss"
+                          ? "bg-jcf-panel border-white/40 text-white"
+                          : "border-white/15 text-jcf-gray hover:border-white/40"
+                      }`}
+                    >
+                      Miss — Fell Short
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-jcf-gray mt-2">
+                    Hit bumps this lift's training max ~4% for next time. Miss holds it flat.
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}
