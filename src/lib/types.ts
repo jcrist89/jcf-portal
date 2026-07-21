@@ -27,6 +27,16 @@ export interface Exercise {
   reps: string;
   rest: string;
   notes?: string;
+  liftKey?: string;      // add this line — links to training_maxes.lift, e.g. "bench"
+  percentOfTm?: number;  // add this line — e.g. 87 means 87% of that lift's training max
+}
+
+export interface TrainingMax {
+  id: string;
+  profile_id: string;
+  lift: string;
+  weight: number;
+  updated_at: string;
 }
 
 export interface ProgramDay {
