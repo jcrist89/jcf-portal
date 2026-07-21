@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { runAchievementChecks } from "@/lib/achievements";
 import { detectNewPRs } from "@/lib/workoutHistory";
+import { adjustTrainingMax } from "@/lib/trainingMax";
 import type { Profile, WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -15,8 +16,6 @@ export async function POST(req: NextRequest) {
   const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
   const exercisesCompleted = body.exercisesCompleted ?? [];
 
-  // Snapshot the client's history *before* inserting this workout, so PR
-  // detection below compares against what came before, not the new log itself.
   const { data: priorLogs } = await client
     .from("workout_logs")
     .select("*")
@@ -39,8 +38,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Could not save workout." }, { status: 500 });
   }
 
-  // Auto-detect PRs: any exercise in this workout that beat the client's prior
-  // all-time-best weight gets recorded automatically — no manual PR entry needed.
   const prCandidates = body.completed === false ? [] : detectNewPRs((priorLogs ?? []) as WorkoutLog[], exercisesCompleted);
   let newPrs: any[] = [];
   if (prCandidates.length > 0) {
@@ -58,6 +55,30 @@ export async function POST(req: NextRequest) {
       )
       .select();
     newPrs = inserted ?? [];
+  }
+
+  // Training-max auto-adjustment: client sends which lifts were TM-driven this
+  // session and whether they were hit or missed; we bump/hold the training max.
+  const trainingMaxAdjustments = Array.isArray(body.trainingMaxAdjustments) ? body.trainingMaxAdjustments : [];
+  if (trainingMaxAdjustments.length > 0) {
+    const { data: currentTMs } = await client
+      .from("training_maxes")
+      .select("*")
+      .eq("profile_id", profileId)
+      .in("lift", trainingMaxAdjustments.map((a: any) => a.lift));
+    const tmMap = new Map((currentTMs ?? []).map((t: any) => [t.lift, Number(t.weight)]));
+    for (const adj of trainingMaxAdjustments) {
+      const current = tmMap.get(adj.lift);
+      if (current == null) continue;
+      const next = adjustTrainingMax(current, !!adj.hit);
+      if (next !== current) {
+        await client
+          .from("training_maxes")
+          .update({ weight: next, updated_at: new Date().toISOString() })
+          .eq("profile_id", profileId)
+          .eq("lift", adj.lift);
+      }
+    }
   }
 
   const newAchievements = await checkAndAwardAchievements(client, profileId, { newPrs });
