@@ -88,7 +88,7 @@ export function detectNewPRs(
     if (!sessionBest) continue;
 
     const priorBest = bestWeightForExercise(priorLogs, ex.name);
-    if (priorBest && sessionBest.weight > priorBest.weight) {
+    if (!priorBest || sessionBest.weight > priorBest.weight) {
       out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps });
     }
   }
