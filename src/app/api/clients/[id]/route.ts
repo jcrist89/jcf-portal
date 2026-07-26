@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
     const { error } = await admin.auth.resetPasswordForEmail(profile.email, {
-      redirectTo: `${siteUrl}/auth/confirm?next=/reset-password`,
+      redirectTo: `${siteUrl}/reset-password`,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });

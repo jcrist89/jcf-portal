@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName },
-    redirectTo: `${siteUrl}/auth/confirm?next=/reset-password`,
+    redirectTo: `${siteUrl}/reset-password`,
   });
   if (inviteErr || !invited.user) {
     return NextResponse.json({ error: inviteErr?.message ?? "Could not invite client." }, { status: 500 });
