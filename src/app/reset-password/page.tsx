@@ -34,15 +34,25 @@ export default function ResetPasswordPage() {
       const tokenHash = params.get("token_hash");
       const type = params.get("type");
 
-      if (code) {
+      // @supabase/ssr forces flowType: "pkce", which means its own automatic
+      // detectSessionInUrl only ever looks for a `code` param — it does NOT
+      // parse the classic implicit-flow hash fragment
+      // (#access_token=...&refresh_token=...&type=recovery), which is exactly
+      // what this project's email links use. Left unhandled, getSession() below
+      // would silently fall through to whatever session already happened to be
+      // in cookies rather than the one this link is actually carrying. So parse
+      // the hash ourselves and set it explicitly.
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      } else if (code) {
         await supabase.auth.exchangeCodeForSession(code);
       } else if (tokenHash && type) {
         await supabase.auth.verifyOtp({ type: type as "recovery" | "invite" | "email", token_hash: tokenHash });
       }
-
-      // Give supabase-js a moment to finish auto-detecting a hash-fragment
-      // session (#access_token=...) if that's the format this link used.
-      await new Promise((resolve) => setTimeout(resolve, 150));
 
       const {
         data: { session },
