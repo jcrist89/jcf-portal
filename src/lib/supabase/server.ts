@@ -1,33 +1,63 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME, mintSupabaseJwt, verifySession } from "@/lib/auth/session";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AppUser } from "@/lib/types";
 
 /**
- * Request-scoped Supabase client authenticated as the current app user via a
- * short-lived, freshly-minted Supabase-compatible JWT (see lib/auth/session.ts).
- * RLS policies then see auth.uid() = the logged-in profile id.
- * Returns null if there's no valid session cookie.
+ * Request-scoped Supabase client bound to the real Supabase Auth session cookie.
+ * RLS policies see auth.uid() = the signed-in user's id directly — no custom JWT minting.
  */
-export async function supabaseForRequest() {
+export function createClient(): SupabaseClient {
   const cookieStore = cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) return null;
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Called from a Server Component render — middleware refreshes the
+            // session cookie on the next request instead.
+          }
+        },
+      },
+    }
+  );
+}
 
-  const session = await verifySession(token);
-  if (!session) return null;
+/**
+ * Convenience wrapper used across pages/route handlers: returns the request-scoped
+ * client plus the merged auth + profile user, or null if there's no signed-in user.
+ */
+export async function supabaseForRequest(): Promise<{ client: SupabaseClient; session: AppUser } | null> {
+  const client = createClient();
+  const {
+    data: { user: authUser },
+  } = await client.auth.getUser();
+  if (!authUser) return null;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY env vars.");
-  }
+  const { data: profile } = await client
+    .from("profiles")
+    .select("*")
+    .eq("id", authUser.id)
+    .maybeSingle();
+  if (!profile) return null;
 
-  const supabaseJwt = await mintSupabaseJwt(session);
-
-  const client = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${supabaseJwt}` } },
-  });
+  const session: AppUser = {
+    id: authUser.id,
+    email: profile.email ?? authUser.email ?? "",
+    role: profile.role,
+    fullName: profile.full_name,
+    tier: profile.tier,
+    onboarded: profile.onboarded,
+  };
 
   return { client, session };
 }

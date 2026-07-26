@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CoachNote } from "@/lib/types";
 import { Button } from "@/components/Button";
+import { getBrowserClient } from "@/lib/supabase/browser";
 
 export function MessageThread({
   initialNotes,
@@ -15,6 +16,47 @@ export function MessageThread({
   const [notes, setNotes] = useState(initialNotes);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const noteIds = useRef(new Set(initialNotes.map((n) => n.id)));
+
+  useEffect(() => {
+    const supabase = getBrowserClient();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setup() {
+      // Postgres Changes RLS is evaluated using whatever JWT is currently attached
+      // to the realtime socket. supabase-js attaches it asynchronously as auth state
+      // resolves, which can lose the race against .subscribe() — so set it explicitly
+      // before subscribing rather than relying on that timing.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      await supabase.realtime.setAuth(session.access_token);
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`coach-notes-${profileId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "coach_notes", filter: `profile_id=eq.${profileId}` },
+          (payload: any) => {
+            const note = payload.new as CoachNote;
+            if (noteIds.current.has(note.id)) return;
+            noteIds.current.add(note.id);
+            setNotes((prev) => [...prev, note]);
+          }
+        )
+        .subscribe();
+    }
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [profileId]);
 
   async function send() {
     if (!message.trim()) return;
@@ -27,6 +69,7 @@ export function MessageThread({
       });
       const data = await res.json();
       if (res.ok) {
+        noteIds.current.add(data.note.id);
         setNotes((prev) => [...prev, data.note]);
         setMessage("");
       }

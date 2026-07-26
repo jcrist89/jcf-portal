@@ -5,7 +5,9 @@ import type { Goal } from "@/lib/types";
 
 const GOALS: Goal[] = ["strength_gain", "fat_loss", "hybrid", "powerlifting"];
 
-/** Client onboarding: profile info + initial measurements + goal -> auto-assign program. */
+/** Client onboarding: profile info + initial measurements, plus goal -> auto-assign
+ * program for clients who don't already have one set (public signup assigns goal +
+ * program immediately, so onboarding only fills in the rest for that path). */
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -14,40 +16,53 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
-  const { fullName, birthday, heightIn, startingWeight, goal, measurements } = body;
+  const { fullName, birthday, heightIn, startingWeight, measurements } = body;
+
+  const { data: existingProfile } = await client
+    .from("profiles")
+    .select("goal, program_id")
+    .eq("id", session.id)
+    .single();
+
+  const goal = existingProfile?.goal ?? body.goal;
   if (!GOALS.includes(goal)) {
     return NextResponse.json({ error: "Invalid goal." }, { status: 400 });
   }
 
-  // Find the shared template for this goal, then copy it into a client-owned instance
-  // so Jon can later customize this client's program without touching the shared template.
-  const admin = supabaseAdmin();
-  const { data: template, error: templateErr } = await admin
-    .from("programs")
-    .select("*")
-    .eq("goal", goal)
-    .eq("is_template", true)
-    .maybeSingle();
+  let programId = existingProfile?.program_id ?? null;
 
-  if (templateErr || !template) {
-    return NextResponse.json({ error: "No template found for that goal." }, { status: 500 });
-  }
+  if (!programId) {
+    // Find the shared template for this goal, then copy it into a client-owned instance
+    // so Jon can later customize this client's program without touching the shared template.
+    const admin = supabaseAdmin();
+    const { data: template, error: templateErr } = await admin
+      .from("programs")
+      .select("*")
+      .eq("goal", goal)
+      .eq("is_default_template", true)
+      .maybeSingle();
 
-  const { data: instance, error: instanceErr } = await client
-    .from("programs")
-    .insert({
-      goal,
-      name: template.name,
-      description: template.description,
-      structure: template.structure,
-      is_template: false,
-      client_id: session.id,
-    })
-    .select()
-    .single();
+    if (templateErr || !template) {
+      return NextResponse.json({ error: "No template found for that goal." }, { status: 500 });
+    }
 
-  if (instanceErr || !instance) {
-    return NextResponse.json({ error: instanceErr?.message ?? "Could not assign program." }, { status: 500 });
+    const { data: instance, error: instanceErr } = await client
+      .from("programs")
+      .insert({
+        goal,
+        name: template.name,
+        description: template.description,
+        structure: template.structure,
+        is_template: false,
+        client_id: session.id,
+      })
+      .select()
+      .single();
+
+    if (instanceErr || !instance) {
+      return NextResponse.json({ error: instanceErr?.message ?? "Could not assign program." }, { status: 500 });
+    }
+    programId = instance.id;
   }
 
   const { error: profileErr } = await client
@@ -59,7 +74,7 @@ export async function POST(req: NextRequest) {
       starting_weight: startingWeight ?? null,
       current_weight: startingWeight ?? null,
       goal,
-      program_id: instance.id,
+      program_id: programId,
       onboarded: true,
     })
     .eq("id", session.id);
@@ -81,7 +96,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ ok: true, programId: instance.id });
+  return NextResponse.json({ ok: true, programId });
 }
 
 export async function PATCH(req: NextRequest) {

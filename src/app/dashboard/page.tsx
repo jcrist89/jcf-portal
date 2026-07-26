@@ -39,7 +39,7 @@ export default async function DashboardPage() {
       <main className="px-4 pt-6 max-w-2xl mx-auto">
         <div className="mb-6">
           <p className="text-jcf-gray text-xs uppercase tracking-widest">Welcome back</p>
-          <h1 className="font-display text-2xl uppercase tracking-wide">{p.full_name ?? user.username}</h1>
+          <h1 className="font-display text-2xl uppercase tracking-wide">{p.full_name ?? user.email}</h1>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-8">

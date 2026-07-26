@@ -1,14 +1,15 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { JcfWordmark } from "@/components/JcfLogo";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, pin }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -46,30 +47,33 @@ export default function LoginPage() {
         className="w-full max-w-sm bg-jcf-panel border border-white/10 rounded-sm p-6 relative z-10"
       >
         <h1 className="font-display uppercase text-lg tracking-wider mb-1">Sign In</h1>
-        <p className="text-jcf-gray text-sm mb-6">Enter the username and PIN Jon gave you.</p>
+        <p className="text-jcf-gray text-sm mb-6">Enter your email and password.</p>
 
         <div className="flex flex-col gap-4">
           <Input
-            id="username"
-            label="Username"
-            autoCapitalize="none"
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
           <Input
-            id="pin"
-            label="PIN"
+            id="password"
+            label="Password"
             type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={6}
             autoComplete="current-password"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
+        </div>
+
+        <div className="flex justify-end mt-2">
+          <Link href="/forgot-password" className="text-jcf-gray text-xs hover:text-jcf-gold">
+            Forgot password?
+          </Link>
         </div>
 
         {error && <p className="text-jcf-danger text-sm mt-4">{error}</p>}
@@ -80,7 +84,10 @@ export default function LoginPage() {
       </form>
 
       <p className="text-jcf-gray text-xs mt-8 relative z-10">
-        Don&apos;t have a login? Ask Jon to set up your account.
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="text-jcf-gold hover:underline">
+          Get started
+        </Link>
       </p>
     </div>
   );

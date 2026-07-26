@@ -1,9 +1,10 @@
 import { requireUser } from "@/lib/auth/require";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { flattenProgram } from "@/lib/program";
-import type { Profile, Program, WorkoutLog } from "@/lib/types";
+import type { Program, WorkoutLog } from "@/lib/types";
 import { ProgramLogger } from "@/components/ProgramLogger";
 
 export default async function ProgramPage() {
@@ -31,11 +32,29 @@ export default async function ProgramPage() {
     <div className="pb-24">
       <ClientNav />
       <main className="px-4 pt-6 max-w-2xl mx-auto">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-1">My Program</h1>
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <h1 className="font-display text-2xl uppercase tracking-wide">My Program</h1>
+          {p && user.tier !== "free" && (
+            <Link
+              href="/program/edit"
+              className="text-jcf-gold text-xs uppercase tracking-widest hover:underline shrink-0 mt-1"
+            >
+              Edit Program →
+            </Link>
+          )}
+        </div>
         {p ? (
-          <p className="text-jcf-gray text-sm mb-6">{p.name} — {p.description}</p>
+          <p className="text-jcf-gray text-sm mb-2">{p.name} — {p.description}</p>
         ) : (
           <p className="text-jcf-gray text-sm mb-6">No program assigned yet.</p>
+        )}
+        {p && user.tier === "free" && (
+          <p className="text-jcf-gray text-xs mb-6">
+            You&apos;re on the free plan — this program is read-only.{" "}
+            <Link href="/pricing" className="text-jcf-gold hover:underline">
+              Upgrade to customize it.
+            </Link>
+          </p>
         )}
 
         {p && (

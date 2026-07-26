@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { generatePin, hashPin } from "@/lib/auth/pin";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await supabaseForRequest();
@@ -14,15 +13,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const admin = supabaseAdmin();
 
-  if (body.resetPin) {
-    const newPin = generatePin(6);
-    const pinHash = await hashPin(newPin);
-    const { error } = await admin.from("profiles").update({ pin_hash: pinHash }).eq("id", params.id);
+  if (body.sendPasswordReset) {
+    const { data: profile } = await admin.from("profiles").select("email").eq("id", params.id).maybeSingle();
+    if (!profile?.email) {
+      return NextResponse.json({ error: "This client has no email on file." }, { status: 400 });
+    }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    const { error } = await admin.auth.resetPasswordForEmail(profile.email, {
+      redirectTo: `${siteUrl}/auth/confirm?next=/reset-password`,
+    });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, pin: newPin });
+    return NextResponse.json({ ok: true });
   }
 
-  const allowed = ["full_name", "birthday", "height_in", "current_weight", "starting_weight", "goal", "program_id", "is_active"];
+  const allowed = [
+    "full_name",
+    "birthday",
+    "height_in",
+    "current_weight",
+    "starting_weight",
+    "goal",
+    "program_id",
+    "is_active",
+    "tier",
+  ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];

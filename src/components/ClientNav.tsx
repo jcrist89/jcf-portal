@@ -9,6 +9,7 @@ const links = [
   { href: "/progress", label: "Progress" },
   { href: "/achievements", label: "Badges" },
   { href: "/messages", label: "Messages" },
+  { href: "/billing", label: "Billing" },
   { href: "/settings", label: "Settings" },
 ];
 

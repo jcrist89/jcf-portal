@@ -1,10 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getBrowserClient, refreshBrowserAuth } from "@/lib/supabase/browser";
+import { getBrowserClient } from "@/lib/supabase/browser";
 import { computeClientSummary, type ClientSummary } from "@/lib/clientSummary";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+
+const TIER_LABELS: Record<string, string> = {
+  free: "Free",
+  paid_programming: "Programming",
+  paid_coaching: "Coaching",
+};
 
 export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSummary[] }) {
   const [summaries, setSummaries] = useState(initialSummaries);
@@ -15,24 +21,33 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
 
   useEffect(() => {
     let cancelled = false;
-    let refreshTimer: ReturnType<typeof setInterval>;
+    const supabase = getBrowserClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function refetch(profileId: string) {
+      const updated = await computeClientSummary(supabase, profileId);
+      if (!updated || cancelled) return;
+      setSummaries((prev) => {
+        const exists = prev.some((s) => s.profile.id === profileId);
+        if (exists) return prev.map((s) => (s.profile.id === profileId ? updated : s));
+        return [updated, ...prev];
+      });
+    }
 
     async function setup() {
-      await refreshBrowserAuth();
+      // Postgres Changes RLS is evaluated using whatever JWT is currently attached to
+      // the realtime socket. supabase-js attaches it asynchronously as auth state
+      // resolves, which can lose the race against .subscribe() — so set it explicitly
+      // before subscribing rather than relying on that timing (otherwise the channel
+      // reports SUBSCRIBED but the connection is anon and RLS silently drops every row).
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      await supabase.realtime.setAuth(session.access_token);
       if (cancelled) return;
-      const supabase = getBrowserClient();
 
-      async function refetch(profileId: string) {
-        const updated = await computeClientSummary(supabase, profileId);
-        if (!updated || cancelled) return;
-        setSummaries((prev) => {
-          const exists = prev.some((s) => s.profile.id === profileId);
-          if (exists) return prev.map((s) => (s.profile.id === profileId ? updated : s));
-          return [updated, ...prev];
-        });
-      }
-
-      const channel = supabase
+      channel = supabase
         .channel("coach-overview")
         .on("postgres_changes", { event: "*", schema: "public", table: "workout_logs" }, (payload: any) => {
           const id = payload.new?.profile_id ?? payload.old?.profile_id;
@@ -53,20 +68,13 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
         .subscribe((status: string) => {
           if (!cancelled) setLive(status === "SUBSCRIBED");
         });
-
-      // Supabase JWTs are short-lived; keep the realtime connection authorized.
-      refreshTimer = setInterval(refreshBrowserAuth, 4 * 60 * 1000);
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
 
-    const cleanupPromise = setup();
+    setup();
+
     return () => {
       cancelled = true;
-      clearInterval(refreshTimer);
-      cleanupPromise.then((fn) => fn && fn());
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -95,7 +103,9 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
           >
             <div className="flex items-start justify-between mb-2">
               <div>
-                <div className="font-display uppercase text-white">{s.profile.full_name ?? s.profile.username}</div>
+                <div className="font-display uppercase text-white">
+                  {s.profile.full_name ?? s.profile.email}
+                </div>
                 <div className="text-[11px] text-jcf-gray uppercase tracking-widest">
                   {s.profile.goal?.replace("_", " ") ?? "No goal set"}
                 </div>
@@ -103,6 +113,22 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
               {!s.profile.is_active && (
                 <span className="text-[10px] uppercase text-jcf-danger">Inactive</span>
               )}
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm bg-jcf-gold/10 text-jcf-gold">
+                {TIER_LABELS[s.profile.tier] ?? s.profile.tier}
+              </span>
+              <span
+                className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm ${
+                  s.profile.subscription_status === "active"
+                    ? "bg-jcf-success/20 text-jcf-success"
+                    : s.profile.subscription_status === "past_due"
+                    ? "bg-jcf-danger/20 text-jcf-danger"
+                    : "bg-white/10 text-jcf-gray"
+                }`}
+              >
+                {s.profile.subscription_status}
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center mt-3">
               <MiniStat label="Streak" value={`${s.streak}w`} />
@@ -133,9 +159,9 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
 
 function CreateClientModal({ onClose }: { onClose: () => void }) {
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<{ username: string; pin: string } | null>(null);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function create() {
@@ -145,14 +171,14 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, username }),
+        body: JSON.stringify({ fullName, email }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
-      setResult({ username: data.profile.username, pin: data.pin });
+      setDone(true);
     } finally {
       setSaving(false);
     }
@@ -164,15 +190,14 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
         className="bg-jcf-panel border border-white/10 rounded-sm p-6 max-w-sm w-full"
         onClick={(e) => e.stopPropagation()}
       >
-        {result ? (
+        {done ? (
           <div className="text-center">
             <h3 className="font-display uppercase text-jcf-gold mb-4">Client Created</h3>
-            <p className="text-jcf-gray text-sm mb-1">Share these login details:</p>
-            <div className="bg-jcf-black rounded-sm p-4 my-3">
-              <div className="text-sm text-white">Username: <span className="text-jcf-gold">{result.username}</span></div>
-              <div className="text-sm text-white">PIN: <span className="text-jcf-gold">{result.pin}</span></div>
-            </div>
-            <Button onClick={() => location.reload()} className="w-full">Done</Button>
+            <p className="text-jcf-gray text-sm mb-1">
+              An invite email was sent to <span className="text-white">{email}</span> so they can set their
+              own password and log in.
+            </p>
+            <Button onClick={() => location.reload()} className="w-full mt-4">Done</Button>
           </div>
         ) : (
           <>
@@ -180,16 +205,19 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
             <div className="flex flex-col gap-3">
               <Input label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
               <Input
-                label="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             {error && <p className="text-jcf-danger text-sm mt-3">{error}</p>}
-            <p className="text-jcf-gray text-xs mt-3">A random 6-digit PIN will be generated automatically.</p>
+            <p className="text-jcf-gray text-xs mt-3">
+              They&apos;ll get an email invite to set their own password (free tier by default).
+            </p>
             <div className="flex gap-3 mt-4">
               <Button variant="ghost" onClick={onClose}>Cancel</Button>
-              <Button onClick={create} disabled={saving || !fullName || !username} className="flex-1">
+              <Button onClick={create} disabled={saving || !fullName || !email} className="flex-1">
                 {saving ? "Creating..." : "Create Client"}
               </Button>
             </div>

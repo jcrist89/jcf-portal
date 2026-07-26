@@ -11,6 +11,12 @@ import type { Achievement, CoachNote, Measurement, PR, Profile, Program, Workout
 
 const TABS = ["Overview", "Program", "Progress", "History", "Badges", "Messages"] as const;
 
+const TIER_LABELS: Record<string, string> = {
+  free: "Free",
+  paid_programming: "Programming",
+  paid_coaching: "Coaching",
+};
+
 export function ClientDetailView({
   profile,
   program,
@@ -39,8 +45,11 @@ export function ClientDetailView({
       </Link>
       <div className="flex items-center justify-between mt-2 mb-6">
         <div>
-          <h1 className="font-display text-2xl uppercase tracking-wide">{profile.full_name ?? profile.username}</h1>
-          <p className="text-jcf-gray text-sm">@{profile.username} · {profile.goal?.replace("_", " ") ?? "no goal"}</p>
+          <h1 className="font-display text-2xl uppercase tracking-wide">{profile.full_name ?? profile.email}</h1>
+          <p className="text-jcf-gray text-sm">
+            {profile.email} · {profile.goal?.replace("_", " ") ?? "no goal"} ·{" "}
+            <span className="text-jcf-gold">{TIER_LABELS[profile.tier] ?? profile.tier}</span>
+          </p>
         </div>
         {!profile.is_active && <span className="text-jcf-danger text-xs uppercase">Inactive</span>}
       </div>
@@ -78,8 +87,10 @@ function OverviewTab({ profile }: { profile: Profile }) {
   const [birthday, setBirthday] = useState(profile.birthday ?? "");
   const [heightIn, setHeightIn] = useState(profile.height_in?.toString() ?? "");
   const [currentWeight, setCurrentWeight] = useState(profile.current_weight?.toString() ?? "");
+  const [tier, setTier] = useState(profile.tier);
   const [saving, setSaving] = useState(false);
-  const [pinResult, setPinResult] = useState<string | null>(null);
+  const [savingTier, setSavingTier] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   async function save() {
     setSaving(true);
@@ -99,14 +110,28 @@ function OverviewTab({ profile }: { profile: Profile }) {
     }
   }
 
-  async function resetPin() {
+  async function changeTier(newTier: string) {
+    setTier(newTier as Profile["tier"]);
+    setSavingTier(true);
+    try {
+      await fetch(`/api/clients/${profile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: newTier }),
+      });
+    } finally {
+      setSavingTier(false);
+    }
+  }
+
+  async function sendPasswordReset() {
     const res = await fetch(`/api/clients/${profile.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resetPin: true }),
+      body: JSON.stringify({ sendPasswordReset: true }),
     });
     const data = await res.json();
-    if (res.ok) setPinResult(data.pin);
+    setResetMessage(res.ok ? "Password reset email sent." : data.error ?? "Could not send reset email.");
   }
 
   async function toggleActive() {
@@ -136,18 +161,32 @@ function OverviewTab({ profile }: { profile: Profile }) {
       </div>
 
       <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+        <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Tier</h3>
+        <select
+          value={tier}
+          onChange={(e) => changeTier(e.target.value)}
+          disabled={savingTier}
+          className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2.5 text-white text-sm focus:outline-none focus:border-jcf-gold"
+        >
+          <option value="free">Free</option>
+          <option value="paid_programming">Programming</option>
+          <option value="paid_coaching">Coaching</option>
+        </select>
+        <p className="text-jcf-gray text-xs mt-2">
+          Manually changing tier here does not touch Stripe billing — use this for grandfathering,
+          comps, or fixing a mismatch, not as a substitute for the client subscribing.
+        </p>
+      </div>
+
+      <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
         <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Account</h3>
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={resetPin}>Reset PIN</Button>
+          <Button variant="secondary" onClick={sendPasswordReset}>Send Password Reset Email</Button>
           <Button variant={profile.is_active ? "danger" : "secondary"} onClick={toggleActive}>
             {profile.is_active ? "Deactivate Client" : "Reactivate Client"}
           </Button>
         </div>
-        {pinResult && (
-          <p className="text-sm mt-3">
-            New PIN: <span className="text-jcf-gold font-semibold">{pinResult}</span> — share this with the client.
-          </p>
-        )}
+        {resetMessage && <p className="text-sm mt-3 text-jcf-gray">{resetMessage}</p>}
       </div>
     </div>
   );

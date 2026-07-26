@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 
-/** Coach-only: edit a program template's (or a client-specific program's) structure. */
+/**
+ * Edit a program's structure — either a coach editing a shared template, or a
+ * client editing their own program instance. Permission is enforced entirely by
+ * RLS (`programs_update`): coaches can edit anything, clients can only edit their
+ * own non-template row and only at paid_programming/paid_coaching tier. We don't
+ * duplicate that check here — if RLS rejects the row, the update just matches zero
+ * rows, which we surface as a 403 rather than a silent no-op.
+ */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await supabaseForRequest();
-  if (!ctx || ctx.session.role !== "coach") {
-    return NextResponse.json({ error: "Coach access required." }, { status: 403 });
-  }
+  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { client } = ctx;
 
   const body = await req.json().catch(() => null);
@@ -23,8 +28,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .update(updates)
     .eq("id", params.id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!program) {
+    return NextResponse.json(
+      { error: "You don't have permission to edit this program. Upgrade your plan to unlock editing." },
+      { status: 403 }
+    );
+  }
   return NextResponse.json({ program });
 }

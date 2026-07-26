@@ -2,10 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Service-role client. Bypasses RLS entirely — only ever import this into
- * server-only code (route handlers / server actions), never into client components.
- * Used for: PIN login lookup (before we have a session/JWT to authenticate with),
- * and coach-only administrative writes where it's simpler to trust the server-side
- * role check than re-derive a scoped client.
+ * server-only code (route handlers), never into client components.
+ * Used for: coach-initiated client account creation (needs auth.admin APIs),
+ * Stripe webhook processing, and other privileged writes where the caller has
+ * already been verified as the coach or as Stripe itself.
  */
 export function supabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

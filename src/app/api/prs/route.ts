@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
-import { checkAndAwardAchievements } from "@/app/api/workouts/route";
+import { checkAndAwardAchievements } from "@/lib/awardAchievements";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
