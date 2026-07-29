@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth/require";
 import { ClientNav } from "@/components/ClientNav";
 import { CoachNav } from "@/components/CoachNav";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { NotificationOptIn } from "@/components/NotificationOptIn";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -14,6 +15,9 @@ export default async function SettingsPage() {
         <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-4">
           <div className="text-jcf-gray text-xs uppercase tracking-widest mb-1">Signed in as</div>
           <div className="text-white">{user.email} · {user.role}</div>
+        </div>
+        <div className="mb-4">
+          <NotificationOptIn role={user.role} />
         </div>
         <ChangePasswordForm />
       </main>

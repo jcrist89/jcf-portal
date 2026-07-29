@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
+import { notifyNewMessage } from "@/lib/push";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
@@ -25,5 +26,8 @@ export async function POST(req: NextRequest) {
   if (error || !note) {
     return NextResponse.json({ error: error?.message ?? "Could not send message." }, { status: 500 });
   }
+
+  notifyNewMessage(profileId, session.role === "coach" ? "coach" : "client").catch(() => {});
+
   return NextResponse.json({ note });
 }

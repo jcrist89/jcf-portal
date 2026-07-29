@@ -1,5 +1,5 @@
 // JCF Portal — minimal offline-friendly app shell service worker.
-const CACHE_NAME = "jcf-shell-v1";
+const CACHE_NAME = "jcf-shell-v2";
 const SHELL_ASSETS = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -32,5 +32,37 @@ self.addEventListener("fetch", (event) => {
         return res;
       })
       .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "JCF", body: "" };
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      payload = { title: "JCF", body: event.data.text() };
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title || "JCF", {
+      body: payload.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: payload.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsArr) => {
+      for (const c of clientsArr) {
+        if (c.url.includes(url) && "focus" in c) return c.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
