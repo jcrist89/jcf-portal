@@ -94,6 +94,7 @@ export default async function ProgramPage() {
             defaultIndex={completedCount % (flat.length || 1)}
             recentLogs={logs}
             trainingMaxes={trainingMaxes}
+            profileId={user.id}
           />
         )}
       </main>

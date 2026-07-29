@@ -1,16 +1,24 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/Button";
+import { DraftStatus } from "@/components/DraftStatus";
 import type { FlatDay } from "@/lib/program";
 import type { WorkoutLog } from "@/lib/types";
 import { AchievementToast } from "@/components/AchievementToast";
 import { lastPerformanceFor, formatSets } from "@/lib/workoutHistory";
 import { workingWeight } from "@/lib/trainingMax";
+import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
+import { useDraftSync } from "@/lib/hooks/useDraftSync";
 
 interface SetInput {
   reps: string;
   weight: string;
   rpe: string;
+}
+
+interface DraftPayload {
+  sets: Record<string, SetInput[]>;
+  tmResults: Record<string, "hit" | "miss">;
 }
 
 function buildInitialSets(
@@ -42,36 +50,96 @@ function buildInitialSets(
   return map;
 }
 
+function loadLocalOrDefault(
+  localKey: string,
+  day: FlatDay | undefined,
+  recentLogs: WorkoutLog[],
+  trainingMaxes: Record<string, number>
+): DraftPayload {
+  const draft = readLocalDraft<DraftPayload>(localKey);
+  if (draft) return draft;
+  return { sets: day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}, tmResults: {} };
+}
+
+async function fetchServerDraftFallback(
+  draftKey: string,
+  localKey: string,
+  apply: (payload: DraftPayload) => void
+) {
+  try {
+    const res = await fetch(`/api/drafts?formType=workout&draftKey=${encodeURIComponent(draftKey)}`);
+    const data = await res.json();
+    if (data?.draft?.payload) {
+      apply(data.draft.payload as DraftPayload);
+      writeLocalDraft(localKey, data.draft.payload);
+    }
+  } catch {
+    // offline / unreachable — nothing to fall back to, local state stands.
+  }
+}
+
 export function ProgramLogger({
   programId,
   days,
   defaultIndex,
   recentLogs,
   trainingMaxes = {},
+  profileId,
 }: {
   programId: string;
   days: FlatDay[];
   defaultIndex: number;
   recentLogs: WorkoutLog[];
   trainingMaxes?: Record<string, number>;
+  profileId: string;
 }) {
   const [dayIndex, setDayIndex] = useState(defaultIndex);
   const day = days[dayIndex];
 
-  const initialSets = useMemo(
-    () => (day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}),
-    [day, recentLogs, trainingMaxes]
+  const localKey = `jcf-draft-workout-${profileId}-${programId}-${dayIndex}`;
+  const draftKey = `${programId}:${dayIndex}`;
+
+  const [sets, setSets] = useState<Record<string, SetInput[]>>(
+    () => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes).sets
   );
-  const [sets, setSets] = useState<Record<string, SetInput[]>>(initialSets);
-  const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>({});
+  const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>(
+    () => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes).tmResults
+  );
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ title: string; description: string }[] | null>(null);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
+  // New-device / lost-local-draft recovery: if there's no local draft for the
+  // day currently shown, check whether the server has one before assuming the
+  // prescribed defaults are really what the client wants.
+  useEffect(() => {
+    if (readLocalDraft(localKey)) return;
+    let cancelled = false;
+    fetchServerDraftFallback(draftKey, localKey, (payload) => {
+      if (cancelled) return;
+      setSets(payload.sets);
+      setTmResults(payload.tmResults ?? {});
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayIndex]);
+
+  const draftData = useMemo(() => ({ sets, tmResults }), [sets, tmResults]);
+  const { status: draftStatus, clear: clearDraft } = useDraftSync({
+    localKey,
+    formType: "workout",
+    draftKey,
+    data: draftData,
+  });
+
   function changeDay(i: number) {
     setDayIndex(i);
-    setSets(buildInitialSets(days[i], recentLogs, trainingMaxes));
-    setTmResults({});
+    const newLocalKey = `jcf-draft-workout-${profileId}-${programId}-${i}`;
+    const loaded = loadLocalOrDefault(newLocalKey, days[i], recentLogs, trainingMaxes);
+    setSets(loaded.sets);
+    setTmResults(loaded.tmResults);
   }
 
   function updateSet(exName: string, idx: number, field: keyof SetInput, value: string) {
@@ -132,10 +200,13 @@ export function ProgramLogger({
         }),
       });
       const data = await res.json();
-      if (res.ok && data.newAchievements?.length) {
-        setToast(data.newAchievements);
-      } else if (res.ok) {
-        setToast([{ title: "Workout Logged", description: "Nice work — see you next session." }]);
+      if (res.ok) {
+        clearDraft();
+        if (data.newAchievements?.length) {
+          setToast(data.newAchievements);
+        } else {
+          setToast([{ title: "Workout Logged", description: "Nice work — see you next session." }]);
+        }
       }
     } finally {
       setSaving(false);
@@ -277,6 +348,9 @@ export function ProgramLogger({
         })}
       </div>
 
+      <div className="flex items-center justify-between mb-2">
+        <DraftStatus status={draftStatus} />
+      </div>
       <Button onClick={save} disabled={saving} className="w-full">
         {saving ? "Saving..." : "Mark Complete & Save"}
       </Button>

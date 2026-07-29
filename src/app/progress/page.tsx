@@ -21,7 +21,11 @@ export default async function ProgressPage() {
       <ClientNav />
       <main className="px-4 pt-6 max-w-2xl mx-auto">
         <h1 className="font-display text-2xl uppercase tracking-wide mb-6">Progress</h1>
-        <ProgressView measurements={(measurements ?? []) as Measurement[]} prs={(prs ?? []) as PR[]} />
+        <ProgressView
+          measurements={(measurements ?? []) as Measurement[]}
+          prs={(prs ?? []) as PR[]}
+          profileId={user.id}
+        />
       </main>
     </div>
   );
