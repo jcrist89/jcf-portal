@@ -3,6 +3,7 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/ClientNav";
 import { ACHIEVEMENT_CATALOG } from "@/lib/achievements";
+import { AchievementIcon } from "@/components/AchievementIcon";
 import type { Achievement } from "@/lib/types";
 
 export default async function AchievementsPage() {
@@ -43,11 +44,11 @@ export default async function AchievementsPage() {
                 }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 text-lg font-display ${
+                  className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${
                     isEarned ? "bg-jcf-gold text-jcf-black" : "bg-white/10 text-jcf-gray"
                   }`}
                 >
-                  {badge.title.charAt(0)}
+                  <AchievementIcon icon={badge.icon} className="w-5 h-5" />
                 </div>
                 <div className="font-display uppercase text-sm tracking-wide text-white mb-1">
                   {badge.title}

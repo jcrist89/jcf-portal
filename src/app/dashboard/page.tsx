@@ -5,7 +5,7 @@ import { ClientNav } from "@/components/ClientNav";
 import { StatCard } from "@/components/StatCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { nextDayUp } from "@/lib/program";
-import { differenceInCalendarWeeks, parseISO } from "date-fns";
+import { differenceInCalendarDays, differenceInCalendarWeeks, parseISO } from "date-fns";
 import type { Profile, Program, WorkoutLog } from "@/lib/types";
 import Link from "next/link";
 
@@ -33,6 +33,11 @@ export default async function DashboardPage() {
   const streak = computeStreak(completedLogs.map((l) => l.date));
   const lastWeight = p.current_weight ?? p.starting_weight ?? "—";
 
+  const lastLogDate = completedLogs[0]?.date ?? null;
+  const daysSinceLog = lastLogDate ? differenceInCalendarDays(new Date(), parseISO(lastLogDate)) : null;
+  const accountAgeDays = differenceInCalendarDays(new Date(), parseISO(p.created_at));
+  const nudge = buildNudge(daysSinceLog, accountAgeDays, streak);
+
   return (
     <div className="pb-24">
       <ClientNav />
@@ -41,6 +46,18 @@ export default async function DashboardPage() {
           <p className="text-jcf-gray text-xs uppercase tracking-widest">Welcome back</p>
           <h1 className="font-display text-2xl uppercase tracking-wide">{p.full_name ?? user.email}</h1>
         </div>
+
+        {nudge && (
+          <div
+            className={`rounded-sm p-3 mb-6 text-sm border ${
+              nudge.level === "danger"
+                ? "bg-jcf-danger/10 border-jcf-danger/40 text-jcf-danger"
+                : "bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold"
+            }`}
+          >
+            {nudge.text}
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3 mb-8">
           <StatCard label="Streak" value={`${streak}w`} sub="consecutive weeks" />
@@ -104,6 +121,38 @@ export default async function DashboardPage() {
       </main>
     </div>
   );
+}
+
+function buildNudge(
+  daysSinceLog: number | null,
+  accountAgeDays: number,
+  streak: number
+): { level: "warning" | "danger"; text: string } | null {
+  if (daysSinceLog == null) {
+    if (accountAgeDays >= 2) {
+      return { level: "warning", text: "You haven't logged a workout yet — knock out your first one today." };
+    }
+    return null;
+  }
+  if (daysSinceLog >= 14) {
+    return {
+      level: "danger",
+      text: `It's been ${daysSinceLog} days since your last log. Let's get back on track today.`,
+    };
+  }
+  if (daysSinceLog >= 7) {
+    return {
+      level: "danger",
+      text: `It's been ${daysSinceLog} days since your last workout — your streak's at risk.`,
+    };
+  }
+  if (daysSinceLog >= 3 && streak >= 2) {
+    return {
+      level: "warning",
+      text: `${daysSinceLog} days since your last log — keep the ${streak}-week streak alive.`,
+    };
+  }
+  return null;
 }
 
 function computeStreak(dates: string[]): number {

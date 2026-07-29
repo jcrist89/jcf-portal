@@ -1,10 +1,11 @@
 "use client";
+import { AchievementIcon } from "@/components/AchievementIcon";
 
 export function AchievementToast({
   items,
   onClose,
 }: {
-  items: { title: string; description: string }[];
+  items: { title: string; description: string; icon?: string | null }[];
   onClose: () => void;
 }) {
   return (
@@ -20,6 +21,11 @@ export function AchievementToast({
           </div>
           {items.map((item, i) => (
             <div key={i} className={i > 0 ? "mt-4 pt-4 border-t border-white/10" : ""}>
+              {item.icon && (
+                <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 bg-jcf-gold text-jcf-black">
+                  <AchievementIcon icon={item.icon} className="w-6 h-6" />
+                </div>
+              )}
               <div className="font-display text-xl uppercase text-white mb-1">{item.title}</div>
               <div className="text-jcf-gray text-sm">{item.description}</div>
             </div>

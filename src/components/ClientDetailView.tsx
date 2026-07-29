@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { MessageThread } from "@/components/MessageThread";
+import { AchievementIcon } from "@/components/AchievementIcon";
 import { flattenProgram } from "@/lib/program";
 import { formatSets } from "@/lib/workoutHistory";
 import type { Achievement, CoachNote, Measurement, PR, Profile, Program, WorkoutLog } from "@/lib/types";
@@ -342,6 +343,9 @@ function BadgesTab({ achievements }: { achievements: Achievement[] }) {
     <div className="grid grid-cols-2 gap-3">
       {achievements.map((a) => (
         <div key={a.id} className="bg-jcf-gold/10 border border-jcf-gold/50 rounded-sm p-4">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2 bg-jcf-gold text-jcf-black">
+            <AchievementIcon icon={a.icon} className="w-4 h-4" />
+          </div>
           <div className="font-display uppercase text-sm text-white mb-1">{a.title}</div>
           <div className="text-xs text-jcf-gray">{a.description}</div>
           <div className="text-[10px] text-jcf-gold mt-2 uppercase tracking-widest">{a.date_earned}</div>
