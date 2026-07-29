@@ -20,7 +20,7 @@ export default async function TemplatesPage() {
   return (
     <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-3xl mx-auto pb-16">
+      <main className="px-4 pt-6 max-w-3xl mx-auto pb-24 sm:pb-16">
         <h1 className="font-display text-2xl uppercase tracking-wide mb-1">Program Templates</h1>
         <p className="text-jcf-gray text-sm mb-6">
           These are the starting templates auto-assigned by goal. Edit exercises, sets, reps, and rest below —

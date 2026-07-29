@@ -36,14 +36,14 @@ export function ClientNav() {
         </button>
       </header>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-jcf-charcoal border-t border-white/10 flex justify-around py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-jcf-charcoal border-t border-white/10 overflow-x-auto jcf-scrollbar flex justify-start sm:justify-around gap-1 px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {links.map((l) => {
           const active = pathname === l.href;
           return (
             <Link
               key={l.href}
               href={l.href}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] uppercase tracking-wider ${
+              className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] uppercase tracking-wider ${
                 active ? "text-jcf-gold" : "text-jcf-gray"
               }`}
             >

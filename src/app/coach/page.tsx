@@ -48,7 +48,7 @@ export default async function CoachHomePage() {
   return (
     <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-5xl mx-auto pb-16">
+      <main className="px-4 pt-6 max-w-5xl mx-auto pb-24 sm:pb-16">
         <h1 className="font-display text-2xl uppercase tracking-wide mb-1">All Clients</h1>
         <p className="text-jcf-gray text-sm mb-6">Updates live as clients log workouts, check-ins, and PRs.</p>
         <CoachOverview initialSummaries={summaries} />

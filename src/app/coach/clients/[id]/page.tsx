@@ -33,7 +33,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   return (
     <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-3xl mx-auto pb-16">
+      <main className="px-4 pt-6 max-w-3xl mx-auto pb-24 sm:pb-16">
         <ClientDetailView
           profile={profile as Profile}
           program={program}
