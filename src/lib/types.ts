@@ -22,6 +22,7 @@ export interface Profile {
   is_active: boolean;
   onboarded: boolean;
   welcome_email_sent_at: string | null;
+  last_nudge_threshold: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -225,6 +226,18 @@ export interface JokerRequest {
   requested_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
+}
+
+export type FormDraftType = "workout" | "measurement" | "pr";
+
+export interface FormDraft {
+  id: string;
+  profile_id: string;
+  form_type: FormDraftType;
+  draft_key: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DeviationReport {

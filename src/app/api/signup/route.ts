@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getStripe, TIER_PRICE_IDS } from "@/lib/stripe";
+import { sendWelcomeEmailOnce } from "@/lib/email/sendWelcome";
 import type { Goal, Tier } from "@/lib/types";
 
 const GOALS: Goal[] = ["strength_gain", "fat_loss", "hybrid", "powerlifting"];
@@ -96,6 +97,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (tier === "free") {
+    // Free is real immediately (no payment step), so the welcome email goes out now.
+    // Paid tiers stay on tier=free until Stripe confirms — their welcome email fires
+    // from the checkout.session.completed webhook handler instead.
+    await sendWelcomeEmailOnce(admin, { id: userId, email, full_name: fullName, tier: "free" });
     return NextResponse.json({ ok: true, checkoutUrl: null });
   }
 

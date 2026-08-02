@@ -1,4 +1,5 @@
 import { differenceInCalendarDays, differenceInCalendarWeeks, parseISO } from "date-fns";
+import { toLb } from "@/lib/units";
 import type {
   Achievement,
   AchievementType,
@@ -121,9 +122,9 @@ export function checkStreaks(ctx: AchievementContext): NewAchievement[] {
 export function checkPrHit(ctx: AchievementContext, newPr: PR): NewAchievement[] {
   const priorBestForLift = ctx.prs
     .filter((p) => p.lift === newPr.lift && p.id !== newPr.id)
-    .reduce((max, p) => Math.max(max, p.weight), 0);
+    .reduce((max, p) => Math.max(max, toLb(p.weight, p.unit ?? "lb")), 0);
 
-  if (newPr.weight > priorBestForLift) {
+  if (toLb(newPr.weight, newPr.unit ?? "lb") > priorBestForLift) {
     return [
       {
         type: "pr_hit",
@@ -181,17 +182,24 @@ export function checkGoalMilestone(ctx: AchievementContext): NewAchievement[] {
   }
 
   if (profile.goal === "powerlifting") {
+    // Convert every PR to lb before comparing/summing — prs.unit can be kg
+    // (competition lifts are commonly logged in kg) or lb per record, and raw
+    // weight values across different units can't be added together directly.
     const best = (lift: string) =>
-      prs.filter((p) => p.lift === lift).reduce((m, p) => Math.max(m, p.weight), 0);
-    const total = best("squat") + best("bench") + best("deadlift");
+      prs
+        .filter((p) => p.lift === lift)
+        .reduce((m, p) => Math.max(m, toLb(p.weight, p.unit ?? "lb")), 0);
+    const total = Math.round(best("squat") + best("bench") + best("deadlift"));
     if (total >= 1000) {
       return [goalMilestone(`${total} lb combined squat/bench/deadlift total. Big milestone.`)];
     }
   }
 
   if (profile.goal === "strength_gain") {
+    // profile.current_weight/starting_weight have no unit column — every UI entry
+    // point for bodyweight is labeled "Weight (lb)", so they're always lb.
     const bw = profile.current_weight ?? profile.starting_weight ?? 0;
-    const bestAny = prs.reduce((m, p) => Math.max(m, p.weight), 0);
+    const bestAny = prs.reduce((m, p) => Math.max(m, toLb(p.weight, p.unit ?? "lb")), 0);
     if (bw > 0 && bestAny >= bw * 1.5) {
       return [goalMilestone("Hit a lift at 1.5x bodyweight. Strength is trending up.")];
     }

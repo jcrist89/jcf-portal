@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendWelcomeEmailOnce } from "@/lib/email/sendWelcome";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -19,12 +20,21 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("id, role, email, full_name, tier, welcome_email_sent_at")
     .eq("id", data.user.id)
     .maybeSingle();
 
   if (!profile) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  }
+
+  // Catches clients invited directly by the coach: their first login here is the
+  // earliest point their tier (set at invite time) is known and confirmed, so the
+  // welcome email fires here rather than at account-creation time. Self-signups
+  // already got theirs from /api/signup or the Stripe webhook, so this is a no-op
+  // for them (welcome_email_sent_at is already set).
+  if (profile.role === "client" && !profile.welcome_email_sent_at) {
+    await sendWelcomeEmailOnce(supabase, profile);
   }
 
   return NextResponse.json({ ok: true, role: profile.role });

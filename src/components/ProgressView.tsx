@@ -8,6 +8,7 @@ import { DraftStatus } from "@/components/DraftStatus";
 import { AchievementToast } from "@/components/AchievementToast";
 import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
 import { useDraftSync } from "@/lib/hooks/useDraftSync";
+import { toLb } from "@/lib/units";
 import type { Measurement, PR } from "@/lib/types";
 
 const LIFTS = ["squat", "bench", "deadlift", "overhead_press"];
@@ -74,9 +75,12 @@ export function ProgressView({
           {allLifts.map((lift) => {
             const liftPrs = prs.filter((p) => p.lift === lift);
             if (liftPrs.length === 0) return null;
-            const data = liftPrs.map((p) => ({ date: p.date.slice(5), weight: p.weight }));
-            const unit = liftPrs[liftPrs.length - 1]?.unit ?? "lb";
-            return <ChartCard key={lift} title={`${label(lift)} PR (${unit})`} data={data} dataKey="weight" />;
+            // A single lift's history can mix kg and lb entries (e.g. meet_bench
+            // logged in kg some sessions, lb others) — chart points share one axis,
+            // so they all need converting to a common unit first. The per-record
+            // list below keeps each entry in its own originally-entered unit.
+            const data = liftPrs.map((p) => ({ date: p.date.slice(5), weight: toLb(p.weight, p.unit ?? "lb") }));
+            return <ChartCard key={lift} title={`${label(lift)} PR (lb)`} data={data} dataKey="weight" />;
           })}
           <LogPrForm onLogged={setToast} profileId={profileId} />
           <div className="mt-6 flex flex-col gap-2">

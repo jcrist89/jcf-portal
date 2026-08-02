@@ -10,7 +10,24 @@ export function getStripe(): Stripe {
   return cached;
 }
 
+// A getter (not a module-load-time constant) so the env vars are read at call
+// time — avoids depending on module import order, and makes this testable
+// without needing env vars set before the module first evaluates.
 export const TIER_PRICE_IDS: Record<"paid_programming" | "paid_coaching", string> = {
-  paid_programming: process.env.STRIPE_PRICE_ID_PROGRAMMING ?? "",
-  paid_coaching: process.env.STRIPE_PRICE_ID_COACHING ?? "",
+  get paid_programming() {
+    return process.env.STRIPE_PRICE_ID_PROGRAMMING ?? "";
+  },
+  get paid_coaching() {
+    return process.env.STRIPE_PRICE_ID_COACHING ?? "";
+  },
 };
+
+/** Reverse lookup of TIER_PRICE_IDS — used to re-derive tier from a subscription's
+ *  actual current price, e.g. when a plan change happens via the Stripe customer
+ *  portal rather than through our own checkout flow. */
+export function tierFromPriceId(priceId: string | undefined | null): "paid_programming" | "paid_coaching" | null {
+  if (!priceId) return null;
+  if (priceId === TIER_PRICE_IDS.paid_programming) return "paid_programming";
+  if (priceId === TIER_PRICE_IDS.paid_coaching) return "paid_coaching";
+  return null;
+}

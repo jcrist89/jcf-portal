@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
+import { resolveProfileId } from "@/lib/auth/authorize";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const { client, session } = ctx;
+  const { client } = ctx;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
-  const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
+  const profileId = resolveProfileId(ctx, body.profileId);
 
   const { data: measurement, error } = await client
     .from("measurements")

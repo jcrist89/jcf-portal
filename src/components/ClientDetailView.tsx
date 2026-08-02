@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { MessageThread } from "@/components/MessageThread";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AchievementIcon } from "@/components/AchievementIcon";
 import { flattenProgram } from "@/lib/program";
 import { formatSets } from "@/lib/workoutHistory";
@@ -29,7 +30,7 @@ import { suggestAttempts, kgToLb } from "@/lib/meetPrep/attemptPlanner";
 import { generateWarmup } from "@/lib/meetPrep/warmup";
 import { BENCH_WEAKNESS_OPTIONS, DEADLIFT_WEAKNESS_OPTIONS } from "@/lib/meetPrep/weaknesses";
 
-const TABS = ["Overview", "Program", "Progress", "History", "Badges", "Messages"] as const;
+const TABS = ["Overview", "Program", "Progress", "History", "Badges", "Messages", "Activity"] as const;
 
 const TIER_LABELS: Record<string, string> = {
   free: "Free",
@@ -75,7 +76,15 @@ export function ClientDetailView({
             <span className="text-jcf-gold">{TIER_LABELS[profile.tier] ?? profile.tier}</span>
           </p>
         </div>
-        {!profile.is_active && <span className="text-jcf-danger text-xs uppercase">Inactive</span>}
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/coach/clients/${profile.id}/preview`}
+            className="text-jcf-gray text-xs uppercase tracking-widest hover:text-jcf-gold border border-white/15 rounded-sm px-3 py-2 shrink-0"
+          >
+            View as Client
+          </Link>
+          {!profile.is_active && <span className="text-jcf-danger text-xs uppercase">Inactive</span>}
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto jcf-scrollbar mb-6">
@@ -111,9 +120,100 @@ export function ClientDetailView({
           <MessageThread initialNotes={notes} profileId={profile.id} viewerRole="coach" />
         </div>
       )}
+      {tab === "Activity" && <ActivityTab profileId={profile.id} />}
     </div>
   );
 }
+
+const EVENT_LABELS: Record<string, string> = {
+  workout_completed: "Workout",
+  workout_incomplete: "Workout",
+  measurement: "Check-in",
+  pr: "PR",
+  achievement: "Badge",
+  readiness_checkin: "Readiness",
+  joker_request: "Meet Prep",
+  message: "Message",
+};
+
+function ActivityTab({ profileId }: { profileId: string }) {
+  const [events, setEvents] = useState<
+    { type: string; date: string; summary: string; detail?: string }[]
+  >([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  async function loadPage(before?: string) {
+    const url = before ? `/api/clients/${profileId}/activity?before=${encodeURIComponent(before)}` : `/api/clients/${profileId}/activity`;
+    const res = await fetch(url);
+    if (!res.ok) return { events: [], nextCursor: null };
+    return res.json() as Promise<{ events: typeof events; nextCursor: string | null }>;
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    loadPage().then((page) => {
+      if (cancelled) return;
+      setEvents(page.events);
+      setCursor(page.nextCursor);
+      setLoading(false);
+      setInitialLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // profileId is stable for the life of this tab; re-fetching on every render
+    // would defeat pagination state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
+
+  async function loadMore() {
+    if (!cursor) return;
+    setLoadingMore(true);
+    const page = await loadPage(cursor);
+    setEvents((prev) => [...prev, ...page.events]);
+    setCursor(page.nextCursor);
+    setLoadingMore(false);
+  }
+
+  if (loading && !initialLoaded) {
+    return <p className="text-jcf-gray text-sm">Loading activity…</p>;
+  }
+  if (events.length === 0) {
+    return <p className="text-jcf-gray text-sm">No activity logged yet.</p>;
+  }
+
+  return (
+    <div>
+      <div className="flex flex-col gap-2">
+        {events.map((e, i) => (
+          <div key={i} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between gap-4 text-sm">
+            <div>
+              <span className="text-jcf-gold text-xs uppercase tracking-widest mr-2">{EVENT_LABELS[e.type] ?? e.type}</span>
+              <span>{e.summary}</span>
+              {e.detail && <div className="text-jcf-gray text-xs mt-1">{e.detail}</div>}
+            </div>
+            <span className="text-jcf-gray text-xs shrink-0">{new Date(e.date).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      {cursor && (
+        <Button onClick={loadMore} disabled={loadingMore} className="w-full mt-4" variant="secondary">
+          {loadingMore ? "Loading…" : "Load more"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+const TIER_DISPLAY_LABELS: Record<string, string> = {
+  free: "Free",
+  paid_programming: "Programming",
+  paid_coaching: "Coaching",
+};
 
 function OverviewTab({ profile }: { profile: Profile }) {
   const router = useRouter();
@@ -125,6 +225,8 @@ function OverviewTab({ profile }: { profile: Profile }) {
   const [saving, setSaving] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [pendingTier, setPendingTier] = useState<string | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
   async function save() {
     setSaving(true);
@@ -144,7 +246,10 @@ function OverviewTab({ profile }: { profile: Profile }) {
     }
   }
 
-  async function changeTier(newTier: string) {
+  async function confirmChangeTier() {
+    if (!pendingTier) return;
+    const newTier = pendingTier;
+    setPendingTier(null);
     setTier(newTier as Profile["tier"]);
     setSavingTier(true);
     try {
@@ -170,16 +275,20 @@ function OverviewTab({ profile }: { profile: Profile }) {
 
   async function toggleActive() {
     if (profile.is_active) {
-      const name = profile.full_name ?? profile.email;
-      if (!window.confirm(`Deactivate ${name}? They'll lose access until you reactivate them.`)) return;
-      await fetch(`/api/clients/${profile.id}`, { method: "DELETE" });
-    } else {
-      await fetch(`/api/clients/${profile.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: true }),
-      });
+      setConfirmDeactivate(true);
+      return;
     }
+    await fetch(`/api/clients/${profile.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: true }),
+    });
+    router.refresh();
+  }
+
+  async function confirmDeactivateClient() {
+    setConfirmDeactivate(false);
+    await fetch(`/api/clients/${profile.id}`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -200,8 +309,9 @@ function OverviewTab({ profile }: { profile: Profile }) {
         <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Tier</h3>
         <select
           value={tier}
-          onChange={(e) => changeTier(e.target.value)}
+          onChange={(e) => setPendingTier(e.target.value)}
           disabled={savingTier}
+          aria-label="Client tier"
           className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2.5 text-white text-sm focus:outline-none focus:border-jcf-gold"
         >
           <option value="free">Free</option>
@@ -224,6 +334,26 @@ function OverviewTab({ profile }: { profile: Profile }) {
         </div>
         {resetMessage && <p className="text-sm mt-3 text-jcf-gray">{resetMessage}</p>}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeactivate}
+        title="Deactivate Client"
+        description={`Deactivate ${profile.full_name ?? profile.email}? They'll lose access until you reactivate them.`}
+        confirmLabel="Deactivate"
+        destructive
+        onConfirm={confirmDeactivateClient}
+        onCancel={() => setConfirmDeactivate(false)}
+      />
+      <ConfirmDialog
+        open={pendingTier != null}
+        title="Change Tier"
+        description={`Change ${profile.full_name ?? profile.email}'s tier to ${
+          pendingTier ? TIER_DISPLAY_LABELS[pendingTier] ?? pendingTier : ""
+        }? This does not touch Stripe billing.`}
+        confirmLabel="Change Tier"
+        onConfirm={confirmChangeTier}
+        onCancel={() => setPendingTier(null)}
+      />
     </div>
   );
 }
@@ -263,7 +393,12 @@ function ProgramTab({
   const [manuallyShowMeetPrep, setManuallyShowMeetPrep] = useState(false);
   const showMeetPrep = meetPrepRelevant || manuallyShowMeetPrep;
 
-  async function swapProgram(templateId: string) {
+  const [pendingSwap, setPendingSwap] = useState<{ id: string; name: string } | null>(null);
+
+  async function confirmSwapProgram() {
+    if (!pendingSwap) return;
+    const templateId = pendingSwap.id;
+    setPendingSwap(null);
     setSwapping(true);
     try {
       const template = templates.find((t) => t.id === templateId);
@@ -323,12 +458,23 @@ function ProgramTab({
         <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Swap Program Template</h3>
         <div className="flex flex-wrap gap-2">
           {templates.map((t) => (
-            <Button key={t.id} variant="secondary" disabled={swapping} onClick={() => swapProgram(t.id)}>
+            <Button key={t.id} variant="secondary" disabled={swapping} onClick={() => setPendingSwap({ id: t.id, name: t.name })}>
               {t.name}
             </Button>
           ))}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingSwap != null}
+        title="Swap Program Template"
+        description={`Assign "${pendingSwap?.name ?? ""}" to ${
+          profile.full_name ?? profile.email
+        }? This replaces their current program instance — any in-progress edits to it won't carry over.`}
+        confirmLabel="Swap Program"
+        onConfirm={confirmSwapProgram}
+        onCancel={() => setPendingSwap(null)}
+      />
 
       {showMeetPrep ? (
         <>

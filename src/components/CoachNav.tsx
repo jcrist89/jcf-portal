@@ -6,6 +6,7 @@ import { JcfWordmark } from "./JcfLogo";
 const links = [
   { href: "/coach", label: "All Clients" },
   { href: "/coach/templates", label: "Templates" },
+  { href: "/coach/monitoring", label: "Monitoring" },
   { href: "/settings", label: "Settings" },
 ];
 

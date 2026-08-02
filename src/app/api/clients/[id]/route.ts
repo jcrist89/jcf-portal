@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireExistingClient } from "@/lib/auth/authorize";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await supabaseForRequest();
@@ -12,6 +13,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
   const admin = supabaseAdmin();
+
+  // params.id is fully caller-controlled and this route writes via the
+  // service-role client (bypasses RLS) — confirm it actually targets a client
+  // profile before doing anything, rather than trusting it blindly.
+  const targetCheck = await requireExistingClient(admin, params.id);
+  if (targetCheck) return targetCheck;
 
   if (body.sendPasswordReset) {
     const { data: profile } = await admin.from("profiles").select("email").eq("id", params.id).maybeSingle();
@@ -59,6 +66,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Coach access required." }, { status: 403 });
   }
   const admin = supabaseAdmin();
+  const targetCheck = await requireExistingClient(admin, params.id);
+  if (targetCheck) return targetCheck;
+
   const { error } = await admin.from("profiles").update({ is_active: false }).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

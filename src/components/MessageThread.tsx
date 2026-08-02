@@ -73,6 +73,12 @@ export function MessageThread({
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
+    // markRead isn't memoized (a new reference every render) and viewerRole is a
+    // stable prop for the life of a mounted thread — including either would just
+    // tear down and re-subscribe the Realtime channel on every render, which is
+    // worse than the (correct) staleness this rule is warning about. Same
+    // rationale as the effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 
   async function send() {

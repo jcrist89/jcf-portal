@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/PublicHeader";
 import { Button } from "@/components/Button";
+import { CheckoutStatusBanner } from "@/components/CheckoutStatusBanner";
 
 const TIERS = [
   {
@@ -47,12 +48,23 @@ const TIERS = [
   },
 ] as const;
 
-export default function PricingPage() {
+export default function PricingPage({
+  searchParams,
+}: {
+  searchParams: { checkout?: string };
+}) {
+  const checkoutStatus = searchParams.checkout === "cancelled" ? "cancelled" as const : null;
+
   return (
     <div className="min-h-screen">
       <PublicHeader />
       <section className="px-6 py-16 sm:py-20">
         <div className="max-w-5xl mx-auto text-center mb-12">
+          {checkoutStatus && (
+            <div className="flex justify-center">
+              <CheckoutStatusBanner status={checkoutStatus} planActive={false} tier={null} />
+            </div>
+          )}
           <p className="text-jcf-gold text-xs uppercase tracking-[0.3em] mb-3">Pricing</p>
           <h1 className="font-display uppercase text-3xl sm:text-4xl tracking-tight mb-3">
             Pick Your Level of Coaching

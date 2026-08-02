@@ -421,7 +421,7 @@ export function ProgramLogger({
     return (
       <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
         <h2 className="font-display uppercase tracking-wide text-sm text-jcf-gold mb-1">Readiness Check-In</h2>
-        <p className="text-jcf-gray text-xs mb-4">A quick read before today's session — this shapes how heavy today gets.</p>
+        <p className="text-jcf-gray text-xs mb-4">A quick read before today&apos;s session — this shapes how heavy today gets.</p>
         <div className="grid grid-cols-2 gap-3 mb-4">
           {READINESS_FIELDS.map(({ key, label }) => (
             <div key={key} className="flex flex-col gap-1">
@@ -514,7 +514,7 @@ export function ProgramLogger({
               {blocksHeavy && (
                 <div className="mb-3 pb-3 border-b border-white/10 text-xs text-jcf-danger">
                   Readiness is very low today{readiness && readiness.joint_pain >= 4 ? " (meaningful joint pain reported)" : ""} —
-                  today's heavy single is held. Technique work only; Jon will review before your next heavy session.
+                  today&apos;s heavy single is held. Technique work only; Jon will review before your next heavy session.
                 </div>
               )}
               {showPrescription && (
@@ -553,6 +553,7 @@ export function ProgramLogger({
                       inputMode="numeric"
                       value={s.reps}
                       onChange={(e) => updateSet(ex.name, idx, "reps", e.target.value)}
+                      aria-label={`${ex.name} set ${idx + 1} reps`}
                       className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
@@ -562,12 +563,14 @@ export function ProgramLogger({
                       placeholder={
                         last?.exercise.sets[idx]?.weight != null ? String(last.exercise.sets[idx].weight) : undefined
                       }
+                      aria-label={`${ex.name} set ${idx + 1} weight`}
                       className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
                       inputMode="decimal"
                       value={s.rpe}
                       onChange={(e) => updateSet(ex.name, idx, "rpe", e.target.value)}
+                      aria-label={`${ex.name} set ${idx + 1} RPE`}
                       className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                   </div>
@@ -604,7 +607,7 @@ export function ProgramLogger({
                     </button>
                   </div>
                   <p className="text-[10px] text-jcf-gray mt-2">
-                    Hit bumps this lift's training max ~4% for next time. Miss holds it flat.
+                    Hit bumps this lift&apos;s training max ~4% for next time. Miss holds it flat.
                   </p>
                 </div>
               )}
@@ -643,7 +646,7 @@ export function ProgramLogger({
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs text-jcf-gold mb-2">
                     Joker approved — up to {jokerRequest.max_permitted_weight}
-                    {unitLabel}. Log the result once you've taken it.
+                    {unitLabel}. Log the result once you&apos;ve taken it.
                   </p>
                   {jokerSetIndex[ex.name] == null ? (
                     <button
@@ -658,6 +661,7 @@ export function ProgramLogger({
                       <input
                         inputMode="decimal"
                         placeholder={`Weight (${unitLabel})`}
+                        aria-label={`Joker set actual weight (${unitLabel})`}
                         value={jokerResultDrafts[ex.name]?.weight ?? ""}
                         onChange={(e) =>
                           setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: e.target.value, rpe: prev[ex.name]?.rpe ?? "" } }))
@@ -667,6 +671,7 @@ export function ProgramLogger({
                       <input
                         inputMode="decimal"
                         placeholder="RPE"
+                        aria-label="Joker set actual RPE"
                         value={jokerResultDrafts[ex.name]?.rpe ?? ""}
                         onChange={(e) =>
                           setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: prev[ex.name]?.weight ?? "", rpe: e.target.value } }))
@@ -701,8 +706,8 @@ export function ProgramLogger({
         <div className="bg-jcf-panel border border-jcf-danger/40 rounded-sm p-4 mb-4">
           <h3 className="text-xs uppercase tracking-widest text-jcf-danger mb-1">Weight Above Prescribed Limit</h3>
           <p className="text-jcf-gray text-xs mb-3">
-            This weight exceeds today's prescribed limit. Completing the program as written is the goal of this
-            session — a few details for Jon's review, then you can save.
+            This weight exceeds today&apos;s prescribed limit. Completing the program as written is the goal of this
+            session — a few details for Jon&apos;s review, then you can save.
           </p>
           {pendingDeviations.map((d, i) => (
             <div key={i} className="mb-3 pb-3 border-b border-white/10 last:border-b-0 last:pb-0 last:mb-0">
@@ -712,6 +717,7 @@ export function ProgramLogger({
               <div className="grid grid-cols-1 gap-2">
                 <input
                   placeholder="Reason for the deviation"
+                  aria-label={`Reason for the ${d.exerciseName} weight deviation`}
                   value={d.reason}
                   onChange={(e) =>
                     setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, reason: e.target.value } : x)))
@@ -722,6 +728,7 @@ export function ProgramLogger({
                   <input
                     inputMode="numeric"
                     placeholder="Pain score (0-5)"
+                    aria-label={`Pain score for the ${d.exerciseName} deviation, 0 to 5`}
                     value={d.painScore}
                     onChange={(e) =>
                       setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, painScore: e.target.value } : x)))
@@ -731,6 +738,7 @@ export function ProgramLogger({
                   <input
                     inputMode="numeric"
                     placeholder="Technical rating (1-5)"
+                    aria-label={`Technical rating for the ${d.exerciseName} deviation, 1 to 5`}
                     value={d.technicalRating}
                     onChange={(e) =>
                       setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, technicalRating: e.target.value } : x)))

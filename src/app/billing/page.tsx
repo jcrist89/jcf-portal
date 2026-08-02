@@ -61,6 +61,13 @@ export default async function BillingPage() {
 
         {profile?.stripe_customer_id ? (
           <BillingPanel hasStripeCustomer />
+        ) : profile?.tier !== "free" ? (
+          <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+            <p className="text-jcf-gray text-sm">
+              You have complimentary {TIER_LABELS[profile?.tier ?? ""] ?? profile?.tier} access — no billing on
+              file for this plan.
+            </p>
+          </div>
         ) : (
           <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
             <p className="text-jcf-gray text-sm mb-3">

@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { detectNewPRs } from "@/lib/workoutHistory";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
 import { adjustTrainingMax } from "@/lib/trainingMax";
 import { notifyDeviationReported } from "@/lib/push";
+import { resolveProfileId } from "@/lib/auth/authorize";
+import { logEvent } from "@/lib/eventLog";
 import type { WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const { client, session } = ctx;
+  const { client } = ctx;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
-  const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
+  const profileId = resolveProfileId(ctx, body.profileId);
   const exercisesCompleted = body.exercisesCompleted ?? [];
 
   const { data: priorLogs } = await client
@@ -36,6 +39,13 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !log) {
+    await logEvent(supabaseAdmin(), {
+      level: "error",
+      source: "workouts.save",
+      message: "Failed to save a workout log",
+      context: { error: error?.message ?? "no row returned" },
+      profileId,
+    });
     return NextResponse.json({ error: error?.message ?? "Could not save workout." }, { status: 500 });
   }
 

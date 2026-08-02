@@ -1,4 +1,5 @@
 import { workingWeight } from "../trainingMax";
+import { toLb, toKg } from "../units";
 
 export interface AttemptSuggestion {
   opener: number;
@@ -21,9 +22,9 @@ export function suggestAttempts(projectedMax: number, increment: number): Attemp
 }
 
 export function kgToLb(kg: number): number {
-  return Math.round(kg * 2.20462 * 10) / 10;
+  return Math.round(toLb(kg, "kg") * 10) / 10;
 }
 
 export function lbToKg(lb: number): number {
-  return Math.round((lb / 2.20462) * 10) / 10;
+  return Math.round(toKg(lb, "lb") * 10) / 10;
 }

@@ -27,6 +27,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       updates.max_permitted_weight = body.maxPermittedWeight;
     }
   } else if (body.status === "completed" || body.status === "failed_compliance") {
+    // Ownership here is also enforced by RLS (joker_requests_update: profile_id =
+    // auth.uid() or is_coach()) since this route uses the request-scoped client —
+    // but that's an implicit backstop, not an app-level check. Make it explicit so
+    // this stays safe even if the route is ever changed to use the admin client.
+    if (session.role !== "coach" && existing.profile_id !== session.id) {
+      return NextResponse.json({ error: "Not permitted." }, { status: 403 });
+    }
     if (existing.status !== "approved") {
       return NextResponse.json({ error: "This joker set hasn't been approved yet." }, { status: 400 });
     }

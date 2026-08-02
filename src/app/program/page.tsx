@@ -15,7 +15,6 @@ export default async function ProgramPage() {
   const { client } = ctx;
 
   const { data: profile } = await client.from("profiles").select("*").eq("id", user.id).single();
-  if (!profile?.onboarded) redirect("/onboarding");
 
   const today = new Date().toISOString().slice(0, 10);
 

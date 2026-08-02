@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { logEvent } from "@/lib/eventLog";
 
 let configured = false;
 function ensureConfigured() {
@@ -37,7 +38,16 @@ export async function sendPushToProfile(profileId: string, payload: PushPayload)
         await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, json);
       } catch (err: any) {
         if (err?.statusCode === 404 || err?.statusCode === 410) {
+          // Dead subscription — expected, not a failure worth logging.
           await admin.from("push_subscriptions").delete().eq("id", sub.id);
+        } else {
+          await logEvent(admin, {
+            level: "warning",
+            source: "push.send",
+            message: "Push notification failed to send",
+            context: { statusCode: err?.statusCode ?? null, title: payload.title },
+            profileId,
+          });
         }
       }
     })

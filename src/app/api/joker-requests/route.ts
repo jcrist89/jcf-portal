@@ -3,12 +3,13 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { checkJokerEligibility, jokerMaxPermittedWeight } from "@/lib/meetPrep/jokerEligibility";
 import { computeWeeklyCompliance } from "@/lib/meetPrep/compliance";
 import { notifyJokerRequested } from "@/lib/push";
+import { resolveProfileId } from "@/lib/auth/authorize";
 import type { DeviationReport, Program, ReadinessCheckin, WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const { client, session } = ctx;
+  const { client } = ctx;
 
   const body = await req.json().catch(() => null);
   if (!body?.lift || typeof body.weekNumber !== "number" || typeof body.topSingleWeight !== "number" || typeof body.topSingleRpe !== "number") {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Joker sets are only available on the meet lifts." }, { status: 400 });
   }
 
-  const profileId = session.role === "coach" && body.profileId ? body.profileId : session.id;
+  const profileId = resolveProfileId(ctx, body.profileId);
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: profile } = await client.from("profiles").select("program_id").eq("id", profileId).maybeSingle();
