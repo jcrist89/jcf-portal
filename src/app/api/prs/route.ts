@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       profile_id: profileId,
       lift: body.lift,
       weight: body.weight,
+      unit: body.unit === "kg" ? "kg" : "lb",
       reps: body.reps ?? 1,
       date: body.date ?? new Date().toISOString().slice(0, 10),
       notes: body.notes ?? null,

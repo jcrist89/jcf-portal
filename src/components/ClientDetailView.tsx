@@ -8,6 +8,7 @@ import { MessageThread } from "@/components/MessageThread";
 import { AchievementIcon } from "@/components/AchievementIcon";
 import { flattenProgram } from "@/lib/program";
 import { formatSets } from "@/lib/workoutHistory";
+import { ProgramPreview } from "@/components/ProgramPreview";
 import type {
   Achievement,
   AttemptEntry,
@@ -98,6 +99,7 @@ export function ClientDetailView({
           templates={templates}
           trainingMaxes={trainingMaxes}
           jokerRequests={jokerRequests}
+          workoutLogs={workoutLogs}
         />
       )}
       {tab === "Progress" && <ProgressTab measurements={measurements} prs={prs} />}
@@ -228,15 +230,20 @@ function ProgramTab({
   templates,
   trainingMaxes,
   jokerRequests,
+  workoutLogs,
 }: {
   profile: Profile;
   program: Program | null;
   templates: { id: string; goal: string; name: string }[];
   trainingMaxes: TrainingMax[];
   jokerRequests: JokerRequest[];
+  workoutLogs: WorkoutLog[];
 }) {
   const [swapping, setSwapping] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const flat = flattenProgram(program);
+  const trainingMaxRecord: Record<string, number> = {};
+  for (const tm of trainingMaxes) trainingMaxRecord[tm.lift] = Number(tm.weight);
 
   async function swapProgram(templateId: string) {
     setSwapping(true);
@@ -270,7 +277,7 @@ function ProgramTab({
               Edit This Program
             </Link>
           </div>
-          <div className="flex flex-col gap-2 mb-6">
+          <div className="flex flex-col gap-2 mb-4">
             {flat.map((d) => (
               <div key={d.index} className="bg-jcf-panel border border-white/10 rounded-sm p-3">
                 <div className="text-xs text-jcf-gray uppercase tracking-widest mb-1">Week {d.week}</div>
@@ -281,6 +288,14 @@ function ProgramTab({
               </div>
             ))}
           </div>
+          <Button variant="secondary" onClick={() => setPreviewOpen((v) => !v)} className="w-full mb-6">
+            {previewOpen ? "Hide" : "Preview"} What {profile.full_name?.split(" ")[0] ?? "He"} Sees
+          </Button>
+          {previewOpen && (
+            <div className="mb-6">
+              <ProgramPreview days={flat} trainingMaxes={trainingMaxRecord} recentLogs={workoutLogs} />
+            </div>
+          )}
         </>
       ) : (
         <p className="text-jcf-gray text-sm mb-6">No program assigned.</p>
@@ -729,7 +744,7 @@ function ProgressTab({ measurements, prs }: { measurements: Measurement[]; prs: 
         {[...prs].reverse().map((p) => (
           <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
             <span>{p.lift}</span>
-            <span className="text-jcf-gold">{p.weight} lb x {p.reps}</span>
+            <span className="text-jcf-gold">{p.weight} {p.unit ?? "lb"} x {p.reps}</span>
             <span className="text-jcf-gray">{p.date}</span>
           </div>
         ))}

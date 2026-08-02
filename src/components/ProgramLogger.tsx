@@ -363,6 +363,7 @@ export function ProgramLogger({
     try {
       const exercisesCompleted = day.exercises.map((ex) => ({
         name: ex.name,
+        unit: ex.unit ?? "lb",
         sets: sets[ex.name].map((s) => ({
           reps: s.reps ? Number(s.reps) : null,
           weight: s.weight ? Number(s.weight) : null,

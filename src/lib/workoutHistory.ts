@@ -54,8 +54,8 @@ export function bestWeightForExercise(
 export function detectNewPRs(
   priorLogs: WorkoutLog[],
   justLoggedExercises: ExerciseLog[]
-): Array<{ lift: string; weight: number; reps: number }> {
-  const out: Array<{ lift: string; weight: number; reps: number }> = [];
+): Array<{ lift: string; weight: number; reps: number; unit: "kg" | "lb" }> {
+  const out: Array<{ lift: string; weight: number; reps: number; unit: "kg" | "lb" }> = [];
   for (const ex of justLoggedExercises) {
     let sessionBest: { weight: number; reps: number } | null = null;
     for (const s of ex.sets) {
@@ -71,7 +71,7 @@ export function detectNewPRs(
     // No prior best means this is the first time this exercise has ever been
     // logged for this client — that counts as a PR too, not just beating a number.
     if (!priorBest || sessionBest.weight > priorBest.weight) {
-      out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps });
+      out.push({ lift: ex.name, weight: sessionBest.weight, reps: sessionBest.reps, unit: ex.unit ?? "lb" });
     }
   }
   return out;

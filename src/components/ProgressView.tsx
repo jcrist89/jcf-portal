@@ -71,18 +71,18 @@ export function ProgressView({
           {/* Auto-detected from workout logs, plus anything manually logged below — no
               hardcoded lift list, so any exercise that's ever set a new best gets its own chart. */}
           {allLifts.map((lift) => {
-            const data = prs
-              .filter((p) => p.lift === lift)
-              .map((p) => ({ date: p.date.slice(5), weight: p.weight }));
-            if (data.length === 0) return null;
-            return <ChartCard key={lift} title={`${label(lift)} PR (lb)`} data={data} dataKey="weight" />;
+            const liftPrs = prs.filter((p) => p.lift === lift);
+            if (liftPrs.length === 0) return null;
+            const data = liftPrs.map((p) => ({ date: p.date.slice(5), weight: p.weight }));
+            const unit = liftPrs[liftPrs.length - 1]?.unit ?? "lb";
+            return <ChartCard key={lift} title={`${label(lift)} PR (${unit})`} data={data} dataKey="weight" />;
           })}
           <LogPrForm onLogged={setToast} profileId={profileId} />
           <div className="mt-6 flex flex-col gap-2">
             {[...prs].reverse().map((p) => (
               <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
                 <span>{label(p.lift)}</span>
-                <span className="text-jcf-gold">{p.weight} lb x {p.reps}</span>
+                <span className="text-jcf-gold">{p.weight} {p.unit ?? "lb"} x {p.reps}</span>
                 <span className="text-jcf-gray text-right">
                   {p.date}
                   {p.notes === "Auto-detected from workout log" && (

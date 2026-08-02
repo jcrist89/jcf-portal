@@ -125,6 +125,7 @@ export interface PR {
   profile_id: string;
   lift: Lift;
   weight: number;
+  unit: "kg" | "lb";
   reps: number;
   date: string;
   notes: string | null;
@@ -140,6 +141,7 @@ export interface SetLog {
 export interface ExerciseLog {
   name: string;
   sets: SetLog[];
+  unit?: "kg" | "lb"; // unit the weights were logged in; defaults to "lb" when absent
   notes?: string;
 }
 

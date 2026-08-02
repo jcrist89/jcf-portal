@@ -128,7 +128,7 @@ export function checkPrHit(ctx: AchievementContext, newPr: PR): NewAchievement[]
       {
         type: "pr_hit",
         title: `New PR — ${formatLift(newPr.lift)}`,
-        description: `${newPr.weight} lb x ${newPr.reps} on ${formatLift(newPr.lift)}. New best.`,
+        description: `${newPr.weight} ${newPr.unit ?? "lb"} x ${newPr.reps} on ${formatLift(newPr.lift)}. New best.`,
         icon: "trophy",
       },
     ];

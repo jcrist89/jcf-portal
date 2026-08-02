@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
           profile_id: profileId,
           lift: c.lift,
           weight: c.weight,
+          unit: c.unit,
           reps: c.reps,
           date: log.date,
           notes: "Auto-detected from workout log",
