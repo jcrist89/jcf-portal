@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { flattenProgram } from "@/lib/program";
-import type { Program, WorkoutLog, TrainingMax } from "@/lib/types";
+import type { JokerRequest, Program, ReadinessCheckin, WorkoutLog, TrainingMax } from "@/lib/types";
 import { ProgramLogger } from "@/components/ProgramLogger";
+import { kgToLb } from "@/lib/meetPrep/attemptPlanner";
 
 export default async function ProgramPage() {
   const user = await requireUser("client");
@@ -16,13 +17,18 @@ export default async function ProgramPage() {
   const { data: profile } = await client.from("profiles").select("*").eq("id", user.id).single();
   if (!profile?.onboarded) redirect("/onboarding");
 
-  const [{ data: program }, { data: workoutLogs }, { data: trainingMaxRows }] = await Promise.all([
-    profile.program_id
-      ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    client.from("workout_logs").select("*").eq("profile_id", user.id).order("date", { ascending: false }),
-    client.from("training_maxes").select("*").eq("profile_id", user.id),
-  ]);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [{ data: program }, { data: workoutLogs }, { data: trainingMaxRows }, { data: todayReadinessRow }, { data: jokerRequestRows }] =
+    await Promise.all([
+      profile.program_id
+        ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      client.from("workout_logs").select("*").eq("profile_id", user.id).order("date", { ascending: false }),
+      client.from("training_maxes").select("*").eq("profile_id", user.id),
+      client.from("readiness_checkins").select("*").eq("profile_id", user.id).eq("date", today).maybeSingle(),
+      client.from("joker_requests").select("*").eq("profile_id", user.id),
+    ]);
 
   const p = program as Program | null;
   const flat = flattenProgram(p);
@@ -87,6 +93,30 @@ export default async function ProgramPage() {
           </div>
         )}
 
+        {p && p.attempt_plan?.released && (
+          <div className="bg-jcf-panel border border-jcf-gold/30 rounded-sm p-4 mb-6">
+            <h2 className="font-display uppercase tracking-wide text-sm text-jcf-gold mb-3">Your Openers</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {(["bench", "deadlift"] as const).map((lift) => {
+                const entry = p.attempt_plan![lift];
+                return (
+                  <div key={lift}>
+                    <div className="text-xs uppercase tracking-widest text-jcf-gray mb-1">{lift}</div>
+                    {(["opener", "second", "third"] as const).map((field) => (
+                      <div key={field} className="text-sm text-white flex justify-between">
+                        <span className="text-jcf-gray capitalize">{field}</span>
+                        <span>
+                          {entry[field] != null ? `${entry[field]}kg / ${kgToLb(entry[field] as number)}lb` : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {p && (
           <ProgramLogger
             programId={p.id}
@@ -95,6 +125,8 @@ export default async function ProgramPage() {
             recentLogs={logs}
             trainingMaxes={trainingMaxes}
             profileId={user.id}
+            initialReadiness={(todayReadinessRow as ReadinessCheckin | null) ?? null}
+            initialJokerRequests={(jokerRequestRows ?? []) as JokerRequest[]}
           />
         )}
       </main>

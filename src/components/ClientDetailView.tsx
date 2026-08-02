@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Button } from "@/components/Button";
@@ -8,7 +8,24 @@ import { MessageThread } from "@/components/MessageThread";
 import { AchievementIcon } from "@/components/AchievementIcon";
 import { flattenProgram } from "@/lib/program";
 import { formatSets } from "@/lib/workoutHistory";
-import type { Achievement, CoachNote, Measurement, PR, Profile, Program, WorkoutLog } from "@/lib/types";
+import type {
+  Achievement,
+  AttemptEntry,
+  AttemptPlan,
+  CoachNote,
+  JokerRequest,
+  Measurement,
+  PR,
+  Profile,
+  Program,
+  ProgramWeaknesses,
+  TrainingMax,
+  WorkoutLog,
+} from "@/lib/types";
+import { calculateTrainingMax } from "@/lib/trainingMax";
+import { suggestAttempts, kgToLb } from "@/lib/meetPrep/attemptPlanner";
+import { generateWarmup } from "@/lib/meetPrep/warmup";
+import { BENCH_WEAKNESS_OPTIONS, DEADLIFT_WEAKNESS_OPTIONS } from "@/lib/meetPrep/weaknesses";
 
 const TABS = ["Overview", "Program", "Progress", "History", "Badges", "Messages"] as const;
 
@@ -27,6 +44,8 @@ export function ClientDetailView({
   achievements,
   notes,
   templates,
+  trainingMaxes,
+  jokerRequests,
 }: {
   profile: Profile;
   program: Program | null;
@@ -36,6 +55,8 @@ export function ClientDetailView({
   achievements: Achievement[];
   notes: CoachNote[];
   templates: { id: string; goal: string; name: string }[];
+  trainingMaxes: TrainingMax[];
+  jokerRequests: JokerRequest[];
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
 
@@ -70,7 +91,15 @@ export function ClientDetailView({
       </div>
 
       {tab === "Overview" && <OverviewTab profile={profile} />}
-      {tab === "Program" && <ProgramTab profile={profile} program={program} templates={templates} />}
+      {tab === "Program" && (
+        <ProgramTab
+          profile={profile}
+          program={program}
+          templates={templates}
+          trainingMaxes={trainingMaxes}
+          jokerRequests={jokerRequests}
+        />
+      )}
       {tab === "Progress" && <ProgressTab measurements={measurements} prs={prs} />}
       {tab === "History" && <HistoryTab logs={workoutLogs} />}
       {tab === "Badges" && <BadgesTab achievements={achievements} />}
@@ -197,10 +226,14 @@ function ProgramTab({
   profile,
   program,
   templates,
+  trainingMaxes,
+  jokerRequests,
 }: {
   profile: Profile;
   program: Program | null;
   templates: { id: string; goal: string; name: string }[];
+  trainingMaxes: TrainingMax[];
+  jokerRequests: JokerRequest[];
 }) {
   const [swapping, setSwapping] = useState(false);
   const flat = flattenProgram(program);
@@ -253,7 +286,7 @@ function ProgramTab({
         <p className="text-jcf-gray text-sm mb-6">No program assigned.</p>
       )}
 
-      <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6">
         <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Swap Program Template</h3>
         <div className="flex flex-wrap gap-2">
           {templates.map((t) => (
@@ -263,6 +296,412 @@ function ProgramTab({
           ))}
         </div>
       </div>
+
+      <MeetPrepTmPanel profileId={profile.id} trainingMaxes={trainingMaxes} />
+      <div className="mt-6">
+        <JokerRequestsPanel jokerRequests={jokerRequests} />
+      </div>
+      <div className="mt-6">
+        <ComplianceTrendPanel profileId={profile.id} />
+      </div>
+      {program && (
+        <div className="mt-6">
+          <AttemptPlanPanel program={program} trainingMaxes={trainingMaxes} />
+        </div>
+      )}
+      {program && (
+        <div className="mt-6">
+          <WeaknessesPanel program={program} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const EMPTY_ATTEMPT: AttemptEntry = { opener: null, second: null, third: null };
+
+function AttemptPlanPanel({ program, trainingMaxes }: { program: Program; trainingMaxes: TrainingMax[] }) {
+  const existing = program.attempt_plan;
+  const [bench, setBench] = useState<AttemptEntry>(existing?.bench ?? EMPTY_ATTEMPT);
+  const [deadlift, setDeadlift] = useState<AttemptEntry>(existing?.deadlift ?? EMPTY_ATTEMPT);
+  const [released, setReleased] = useState(existing?.released ?? false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function suggestFor(lift: "meet_bench" | "meet_deadlift", setEntry: (e: AttemptEntry) => void) {
+    const oneRm = trainingMaxes.find((t) => t.lift === lift)?.one_rm;
+    if (!oneRm) return;
+    const s = suggestAttempts(Number(oneRm), 2.5);
+    setEntry({ opener: s.opener, second: s.second, third: s.thirdStandard });
+  }
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const attemptPlan: AttemptPlan = { bench, deadlift, released };
+      await fetch(`/api/templates/${program.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attempt_plan: attemptPlan }),
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-1">Competition Attempts</h3>
+      <p className="text-jcf-gray text-xs mb-4">Kg, coach-approved. Release to show the athlete their planned openers.</p>
+
+      <AttemptLiftRow
+        label="Bench"
+        entry={bench}
+        onChange={setBench}
+        onSuggest={() => suggestFor("meet_bench", setBench)}
+      />
+      <div className="mt-4">
+        <AttemptLiftRow
+          label="Deadlift"
+          entry={deadlift}
+          onChange={setDeadlift}
+          onSuggest={() => suggestFor("meet_deadlift", setDeadlift)}
+        />
+      </div>
+
+      <label className="flex items-center gap-2 mt-4 text-xs text-jcf-gray">
+        <input type="checkbox" checked={released} onChange={(e) => setReleased(e.target.checked)} />
+        Released to athlete
+      </label>
+
+      <Button onClick={save} disabled={saving} variant="secondary" className="mt-3">
+        {saving ? "Saving..." : saved ? "Saved ✓" : "Save"}
+      </Button>
+    </div>
+  );
+}
+
+function AttemptLiftRow({
+  label,
+  entry,
+  onChange,
+  onSuggest,
+}: {
+  label: string;
+  entry: AttemptEntry;
+  onChange: (e: AttemptEntry) => void;
+  onSuggest: () => void;
+}) {
+  const warmup = entry.opener ? generateWarmup(entry.opener, 2.5) : null;
+  return (
+    <div className="border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-display uppercase tracking-wide">{label}</div>
+        <button type="button" onClick={onSuggest} className="text-[10px] uppercase tracking-widest text-jcf-gold hover:underline">
+          Suggest from 1RM
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {(["opener", "second", "third"] as const).map((field) => (
+          <div key={field}>
+            <Input
+              label={`${field[0].toUpperCase()}${field.slice(1)} (kg)`}
+              type="number"
+              value={entry[field] ?? ""}
+              onChange={(e) => onChange({ ...entry, [field]: e.target.value ? Number(e.target.value) : null })}
+            />
+            {entry[field] != null && (
+              <p className="text-[10px] text-jcf-gray mt-1">{kgToLb(entry[field] as number)} lb</p>
+            )}
+          </div>
+        ))}
+      </div>
+      {warmup && (
+        <div className="mt-3">
+          <p className="text-[10px] uppercase tracking-widest text-jcf-gray mb-1">Warm-Up (to opener)</p>
+          <div className="flex flex-wrap gap-2">
+            {warmup.map((w, i) => (
+              <span key={i} className="text-[11px] text-jcf-gray bg-jcf-black border border-white/10 rounded-sm px-2 py-1">
+                {w.weight}kg × {w.reps}
+              </span>
+            ))}
+            <span className="text-[11px] text-jcf-gold bg-jcf-black border border-jcf-gold/30 rounded-sm px-2 py-1">
+              {entry.opener}kg × 1 (opener)
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WeaknessesPanel({ program }: { program: Program }) {
+  const existing = program.weaknesses;
+  const [bench, setBench] = useState<string[]>(existing?.bench ?? []);
+  const [deadlift, setDeadlift] = useState<string[]>(existing?.deadlift ?? []);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function toggle(list: string[], key: string, setList: (v: string[]) => void) {
+    setList(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
+  }
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const weaknesses: ProgramWeaknesses = { bench, deadlift };
+      await fetch(`/api/templates/${program.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weaknesses }),
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-1">Weaknesses</h3>
+      <p className="text-jcf-gray text-xs mb-4">
+        Reference for accessory selection — edit exercises directly via Edit This Program.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-jcf-gray mb-2">Bench</p>
+          <div className="flex flex-col gap-1.5">
+            {BENCH_WEAKNESS_OPTIONS.map((opt) => (
+              <label key={opt.key} className="flex items-center gap-2 text-xs text-white">
+                <input
+                  type="checkbox"
+                  checked={bench.includes(opt.key)}
+                  onChange={() => toggle(bench, opt.key, setBench)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-jcf-gray mb-2">Deadlift</p>
+          <div className="flex flex-col gap-1.5">
+            {DEADLIFT_WEAKNESS_OPTIONS.map((opt) => (
+              <label key={opt.key} className="flex items-center gap-2 text-xs text-white">
+                <input
+                  type="checkbox"
+                  checked={deadlift.includes(opt.key)}
+                  onChange={() => toggle(deadlift, opt.key, setDeadlift)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+      <Button onClick={save} disabled={saving} variant="secondary" className="mt-4">
+        {saving ? "Saving..." : saved ? "Saved ✓" : "Save"}
+      </Button>
+    </div>
+  );
+}
+
+function JokerRequestsPanel({ jokerRequests }: { jokerRequests: JokerRequest[] }) {
+  const [items, setItems] = useState(jokerRequests);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+
+  async function resolve(id: string, status: "approved" | "denied", coachResponse?: string) {
+    setBusy((prev) => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/joker-requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, coachResponse }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setItems((prev) => prev.map((r) => (r.id === id ? data.jokerRequest : r)));
+      }
+    } finally {
+      setBusy((prev) => ({ ...prev, [id]: false }));
+    }
+  }
+
+  const pending = items.filter((r) => r.status === "pending");
+  const resolved = items.filter((r) => r.status !== "pending");
+
+  return (
+    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Joker Requests</h3>
+      {pending.length === 0 && <p className="text-jcf-gray text-sm mb-3">No pending requests.</p>}
+      <div className="flex flex-col gap-2 mb-4">
+        {pending.map((r) => (
+          <div key={r.id} className="border border-white/10 rounded-sm p-3">
+            <div className="text-sm text-white mb-1">
+              Week {r.week_number} · {r.lift === "meet_bench" ? "Bench" : "Deadlift"}
+            </div>
+            <div className="text-xs text-jcf-gray mb-2">
+              Top single {r.top_single_weight}kg @ RPE {r.top_single_rpe} — up to {r.max_permitted_weight}kg requested.
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" disabled={busy[r.id]} onClick={() => resolve(r.id, "approved")}>
+                Approve
+              </Button>
+              <Button variant="danger" disabled={busy[r.id]} onClick={() => resolve(r.id, "denied")}>
+                Deny
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {resolved.length > 0 && (
+        <>
+          <h4 className="text-[10px] uppercase tracking-widest text-jcf-gray mb-2">History</h4>
+          <div className="flex flex-col gap-1.5">
+            {resolved.slice(0, 10).map((r) => (
+              <div key={r.id} className="text-xs text-jcf-gray flex justify-between">
+                <span>
+                  Week {r.week_number} · {r.lift === "meet_bench" ? "Bench" : "Deadlift"}
+                </span>
+                <span>{r.status}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ComplianceTrendPanel({ profileId }: { profileId: string }) {
+  const [weeks, setWeeks] = useState<{ week: number; score: number; category: string }[] | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/compliance?profileId=${profileId}`)
+      .then((res) => res.json())
+      .then((data) => setWeeks(data.weeks ?? []))
+      .catch(() => setWeeks([]));
+  }, [profileId]);
+
+  if (!weeks) return null;
+
+  const current = weeks[weeks.length - 1];
+  const chartData = weeks.map((w) => ({ week: `W${w.week}`, score: w.score }));
+
+  return (
+    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className="text-xs uppercase tracking-widest text-jcf-gold">Compliance Trend</h3>
+        {current && (
+          <span className="text-sm text-white">
+            {current.score}% <span className="text-jcf-gray text-xs">({current.category})</span>
+          </span>
+        )}
+      </div>
+      <ResponsiveContainer width="100%" height={160}>
+        <LineChart data={chartData}>
+          <CartesianGrid stroke="#2a2a2a" vertical={false} />
+          <XAxis dataKey="week" stroke="#8A8A8A" fontSize={10} />
+          <YAxis stroke="#8A8A8A" fontSize={10} domain={[0, 100]} />
+          <Tooltip contentStyle={{ background: "#151515", border: "1px solid #333", fontSize: 12 }} />
+          <Line type="monotone" dataKey="score" stroke="#D9A125" strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function MeetPrepTmPanel({ profileId, trainingMaxes }: { profileId: string; trainingMaxes: TrainingMax[] }) {
+  const LIFTS: { lift: "meet_bench" | "meet_deadlift"; label: string }[] = [
+    { lift: "meet_bench", label: "Bench" },
+    { lift: "meet_deadlift", label: "Deadlift" },
+  ];
+
+  return (
+    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-1">Meet Prep Training Maxes</h3>
+      <p className="text-jcf-gray text-xs mb-3">
+        Separate from the standard hit/miss training max — kg-based, 90% of entered 1RM, coach-approved.
+      </p>
+      <div className="flex flex-col gap-4">
+        {LIFTS.map(({ lift, label }) => (
+          <MeetPrepTmRow
+            key={lift}
+            profileId={profileId}
+            lift={lift}
+            label={label}
+            existing={trainingMaxes.find((t) => t.lift === lift) ?? null}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MeetPrepTmRow({
+  profileId,
+  lift,
+  label,
+  existing,
+}: {
+  profileId: string;
+  lift: "meet_bench" | "meet_deadlift";
+  label: string;
+  existing: TrainingMax | null;
+}) {
+  const [oneRm, setOneRm] = useState(existing?.one_rm?.toString() ?? "");
+  const [approvedTm, setApprovedTm] = useState(existing?.weight?.toString() ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const oneRmNum = Number(oneRm);
+  const calculatedTm = oneRmNum > 0 ? calculateTrainingMax(oneRmNum) : null;
+
+  async function save() {
+    if (!oneRmNum) return;
+    setSaving(true);
+    setSaved(false);
+    try {
+      await fetch("/api/training-maxes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId,
+          lift,
+          oneRm: oneRmNum,
+          unit: "kg",
+          tmPercent: 90,
+          approvedTm: approvedTm ? Number(approvedTm) : calculatedTm,
+        }),
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
+      <div className="text-sm font-display uppercase tracking-wide mb-2">{label}</div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="1RM (kg)" type="number" value={oneRm} onChange={(e) => setOneRm(e.target.value)} />
+        <Input
+          label="Approved TM (kg)"
+          type="number"
+          value={approvedTm}
+          onChange={(e) => setApprovedTm(e.target.value)}
+          placeholder={calculatedTm != null ? String(calculatedTm) : undefined}
+        />
+      </div>
+      {calculatedTm != null && (
+        <p className="text-jcf-gray text-xs mt-2">Calculated 90% TM: {calculatedTm} kg</p>
+      )}
+      <Button onClick={save} disabled={saving || !oneRmNum} variant="secondary" className="mt-3">
+        {saving ? "Saving..." : saved ? "Saved ✓" : "Save"}
+      </Button>
     </div>
   );
 }

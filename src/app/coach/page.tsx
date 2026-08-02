@@ -3,7 +3,7 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CoachNav } from "@/components/CoachNav";
 import { buildSummary } from "@/lib/clientSummary";
-import type { Profile, Program, WorkoutLog } from "@/lib/types";
+import type { DeviationReport, JokerRequest, Profile, Program, ReadinessCheckin, TrainingMax, WorkoutLog } from "@/lib/types";
 import { CoachOverview } from "@/components/CoachOverview";
 
 export default async function CoachHomePage() {
@@ -21,19 +21,36 @@ export default async function CoachHomePage() {
   const clients = (profiles ?? []) as Profile[];
   const programIds = Array.from(new Set(clients.map((c) => c.program_id).filter(Boolean))) as string[];
 
-  const [{ data: programs }, { data: allLogs }, { data: allMeasurements }, { data: allPrs }] = await Promise.all([
+  const [
+    { data: programs },
+    { data: allLogs },
+    { data: allMeasurements },
+    { data: allPrs },
+    { data: allTrainingMaxes },
+    { data: allJokerRequests },
+    { data: allReadiness },
+    { data: allDeviations },
+  ] = await Promise.all([
     programIds.length
       ? client.from("programs").select("*").in("id", programIds)
       : Promise.resolve({ data: [] }),
     client.from("workout_logs").select("*"),
     client.from("measurements").select("profile_id, date"),
     client.from("prs").select("profile_id, date"),
+    client.from("training_maxes").select("*"),
+    client.from("joker_requests").select("*"),
+    client.from("readiness_checkins").select("*"),
+    client.from("deviation_reports").select("*"),
   ]);
 
   const programById = new Map((programs ?? []).map((p: any) => [p.id, p as Program]));
   const logsByProfile = groupBy((allLogs ?? []) as WorkoutLog[], "profile_id");
   const measurementsByProfile = groupBy((allMeasurements ?? []) as any[], "profile_id");
   const prsByProfile = groupBy((allPrs ?? []) as any[], "profile_id");
+  const trainingMaxesByProfile = groupBy((allTrainingMaxes ?? []) as TrainingMax[], "profile_id");
+  const jokerRequestsByProfile = groupBy((allJokerRequests ?? []) as JokerRequest[], "profile_id");
+  const readinessByProfile = groupBy((allReadiness ?? []) as ReadinessCheckin[], "profile_id");
+  const deviationsByProfile = groupBy((allDeviations ?? []) as DeviationReport[], "profile_id");
 
   const summaries = clients.map((c) =>
     buildSummary(
@@ -41,7 +58,13 @@ export default async function CoachHomePage() {
       c.program_id ? programById.get(c.program_id) ?? null : null,
       logsByProfile[c.id] ?? [],
       measurementsByProfile[c.id] ?? [],
-      prsByProfile[c.id] ?? []
+      prsByProfile[c.id] ?? [],
+      {
+        trainingMaxes: trainingMaxesByProfile[c.id] ?? [],
+        jokerRequests: jokerRequestsByProfile[c.id] ?? [],
+        readiness: readinessByProfile[c.id] ?? [],
+        deviations: deviationsByProfile[c.id] ?? [],
+      }
     )
   );
 

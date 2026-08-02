@@ -71,3 +71,57 @@ export async function notifyNewMessage(profileId: string, author: "coach" | "cli
     )
   );
 }
+
+async function notifyAllCoaches(payload: PushPayload): Promise<void> {
+  const admin = supabaseAdmin();
+  const { data: coaches } = await admin.from("profiles").select("id").eq("role", "coach").eq("is_active", true);
+  await Promise.all((coaches ?? []).map((c: any) => sendPushToProfile(c.id, payload)));
+}
+
+async function clientName(profileId: string): Promise<string> {
+  const admin = supabaseAdmin();
+  const { data } = await admin.from("profiles").select("full_name").eq("id", profileId).maybeSingle();
+  return data?.full_name ?? "A client";
+}
+
+/** Fires after a joker-set request is inserted. */
+export async function notifyJokerRequested(profileId: string): Promise<void> {
+  const name = await clientName(profileId);
+  await notifyAllCoaches({
+    title: "Joker set requested",
+    body: `${name} requested a joker set — review and approve.`,
+    url: `/coach/clients/${profileId}`,
+  });
+}
+
+/** Fires after a coach approves or denies a joker-set request. */
+export async function notifyJokerResolved(profileId: string, status: "approved" | "denied"): Promise<void> {
+  await sendPushToProfile(profileId, {
+    title: status === "approved" ? "Joker set approved" : "Joker set denied",
+    body:
+      status === "approved"
+        ? "Your joker set was approved — open your program for the weight."
+        : "Your joker set request was denied.",
+    url: "/program",
+  });
+}
+
+/** Fires after a readiness check-in comes back low or very low. */
+export async function notifyLowReadiness(profileId: string, tier: "low" | "very_low"): Promise<void> {
+  const name = await clientName(profileId);
+  await notifyAllCoaches({
+    title: tier === "very_low" ? "Very low readiness" : "Low readiness",
+    body: `${name} checked in with ${tier.replace("_", " ")} readiness today.`,
+    url: `/coach/clients/${profileId}`,
+  });
+}
+
+/** Fires after a deviation report is created (weight logged above the prescribed limit). */
+export async function notifyDeviationReported(profileId: string): Promise<void> {
+  const name = await clientName(profileId);
+  await notifyAllCoaches({
+    title: "Weight above prescribed limit",
+    body: `${name} logged a weight above the prescribed limit — review the session.`,
+    url: `/coach/clients/${profileId}`,
+  });
+}

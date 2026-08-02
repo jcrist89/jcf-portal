@@ -3,12 +3,49 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/Button";
 import { DraftStatus } from "@/components/DraftStatus";
 import type { FlatDay } from "@/lib/program";
-import type { WorkoutLog } from "@/lib/types";
+import type { JokerRequest, ReadinessCheckin, ReadinessTier, WorkoutLog } from "@/lib/types";
 import { AchievementToast } from "@/components/AchievementToast";
 import { lastPerformanceFor, formatSets } from "@/lib/workoutHistory";
 import { workingWeight } from "@/lib/trainingMax";
+import { phaseForWeek } from "@/lib/meetPrep/generateProgram";
 import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
 import { useDraftSync } from "@/lib/hooks/useDraftSync";
+
+const READINESS_FIELDS: { key: keyof ReadinessFormState; label: string }[] = [
+  { key: "sleep", label: "Sleep Quality" },
+  { key: "fatigue", label: "General Fatigue" },
+  { key: "soreness", label: "Muscle Soreness" },
+  { key: "jointPain", label: "Joint Pain" },
+  { key: "stress", label: "Stress" },
+  { key: "motivation", label: "Motivation" },
+  { key: "nutrition", label: "Nutrition Quality" },
+  { key: "confidence", label: "Confidence" },
+];
+
+interface ReadinessFormState {
+  sleep: number;
+  fatigue: number;
+  soreness: number;
+  jointPain: number;
+  stress: number;
+  motivation: number;
+  nutrition: number;
+  confidence: number;
+}
+
+function isMeetTopSingle(ex: FlatDay["exercises"][number]): boolean {
+  return (ex.liftKey === "meet_bench" || ex.liftKey === "meet_deadlift") && ex.name.endsWith("— Top Single");
+}
+
+interface DeviationDraft {
+  exerciseName: string;
+  liftKey: string;
+  prescribedWeight: number;
+  actualWeight: number;
+  reason: string;
+  painScore: string;
+  technicalRating: string;
+}
 
 interface SetInput {
   reps: string;
@@ -31,7 +68,9 @@ function buildInitialSets(
     const n = typeof ex.sets === "number" ? ex.sets : parseInt(String(ex.sets), 10) || 1;
     const last = lastPerformanceFor(history, ex.name);
     const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
-    const prescribedWeight = tm != null && ex.percentOfTm != null ? workingWeight(tm, ex.percentOfTm) : null;
+    const increment = ex.unit === "kg" ? 2.5 : 5;
+    const prescribedWeight =
+      tm != null && ex.percentOfTm != null ? workingWeight(tm, ex.percentOfTm, increment) : null;
     const prescribedReps = parseInt(String(ex.reps), 10);
     map[ex.name] = Array.from({ length: n }, (_, i) => {
       const lastSet = last?.exercise.sets[i];
@@ -85,6 +124,8 @@ export function ProgramLogger({
   recentLogs,
   trainingMaxes = {},
   profileId,
+  initialReadiness = null,
+  initialJokerRequests = [],
 }: {
   programId: string;
   days: FlatDay[];
@@ -92,9 +133,32 @@ export function ProgramLogger({
   recentLogs: WorkoutLog[];
   trainingMaxes?: Record<string, number>;
   profileId: string;
+  initialReadiness?: ReadinessCheckin | null;
+  initialJokerRequests?: JokerRequest[];
 }) {
   const [dayIndex, setDayIndex] = useState(defaultIndex);
   const day = days[dayIndex];
+
+  const [readiness, setReadiness] = useState<ReadinessCheckin | null>(initialReadiness);
+  const [readinessForm, setReadinessForm] = useState<ReadinessFormState>({
+    sleep: 3,
+    fatigue: 3,
+    soreness: 3,
+    jointPain: 1,
+    stress: 3,
+    motivation: 3,
+    nutrition: 3,
+    confidence: 3,
+  });
+  const [savingReadiness, setSavingReadiness] = useState(false);
+
+  const [jokerRequests, setJokerRequests] = useState<JokerRequest[]>(initialJokerRequests);
+  const [jokerErrors, setJokerErrors] = useState<Record<string, string[]>>({});
+  const [jokerBusy, setJokerBusy] = useState<Record<string, boolean>>({});
+  const [jokerResultDrafts, setJokerResultDrafts] = useState<Record<string, { weight: string; rpe: string }>>({});
+  const [jokerSetIndex, setJokerSetIndex] = useState<Record<string, number>>({});
+
+  const [pendingDeviations, setPendingDeviations] = useState<DeviationDraft[] | null>(null);
 
   const localKey = `jcf-draft-workout-${profileId}-${programId}-${dayIndex}`;
   const draftKey = `${programId}:${dayIndex}`;
@@ -152,6 +216,9 @@ export function ProgramLogger({
   }
 
   function markResult(ex: FlatDay["exercises"][number], result: "hit" | "miss") {
+    // Only the legacy lb-based hit/miss lifts auto-adjust their training max.
+    // Meet-prep lifts (meet_bench/meet_deadlift) log normally with no auto-bump.
+    if (ex.liftKey !== "bench" && ex.liftKey !== "deadlift") return;
     setTmResults((prev) => ({ ...prev, [ex.name]: result }));
     const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
     if (tm == null || ex.percentOfTm == null) return;
@@ -171,8 +238,127 @@ export function ProgramLogger({
     }
   }
 
+  async function submitReadiness() {
+    setSavingReadiness(true);
+    try {
+      const res = await fetch("/api/readiness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(readinessForm),
+      });
+      const data = await res.json();
+      if (res.ok) setReadiness(data.readiness);
+    } finally {
+      setSavingReadiness(false);
+    }
+  }
+
+  function jokerRequestForLift(week: number, liftKey: string): JokerRequest | undefined {
+    return jokerRequests
+      .filter((r) => r.week_number === week && r.lift === liftKey)
+      .sort((a, b) => (a.requested_at < b.requested_at ? 1 : -1))[0];
+  }
+
+  async function requestJoker(ex: FlatDay["exercises"][number]) {
+    if (!ex.liftKey || !day) return;
+    const firstSet = sets[ex.name]?.[0];
+    if (!firstSet?.weight || !firstSet?.rpe) return;
+    setJokerBusy((prev) => ({ ...prev, [ex.name]: true }));
+    setJokerErrors((prev) => ({ ...prev, [ex.name]: [] }));
+    try {
+      const res = await fetch("/api/joker-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lift: ex.liftKey,
+          weekNumber: day.week,
+          topSingleWeight: Number(firstSet.weight),
+          topSingleRpe: Number(firstSet.rpe),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJokerRequests((prev) => [...prev, data.jokerRequest]);
+      } else {
+        setJokerErrors((prev) => ({ ...prev, [ex.name]: data.reasons ?? [data.error ?? "Not eligible."] }));
+      }
+    } finally {
+      setJokerBusy((prev) => ({ ...prev, [ex.name]: false }));
+    }
+  }
+
+  function addJokerResultSet(ex: FlatDay["exercises"][number]) {
+    setSets((prev) => {
+      const current = prev[ex.name] ?? [];
+      setJokerSetIndex((idx) => ({ ...idx, [ex.name]: current.length }));
+      return { ...prev, [ex.name]: [...current, { reps: "1", weight: "", rpe: "" }] };
+    });
+  }
+
+  async function submitJokerResult(ex: FlatDay["exercises"][number], jokerRequest: JokerRequest, failed: boolean) {
+    const draft = jokerResultDrafts[ex.name];
+    if (!draft?.weight || !draft?.rpe) return;
+    setJokerBusy((prev) => ({ ...prev, [ex.name]: true }));
+    try {
+      const res = await fetch(`/api/joker-requests/${jokerRequest.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: failed ? "failed_compliance" : "completed",
+          actualWeight: Number(draft.weight),
+          actualRpe: Number(draft.rpe),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJokerRequests((prev) => prev.map((r) => (r.id === jokerRequest.id ? data.jokerRequest : r)));
+        const idx = jokerSetIndex[ex.name];
+        if (idx != null) {
+          updateSet(ex.name, idx, "weight", draft.weight);
+          updateSet(ex.name, idx, "rpe", draft.rpe);
+        }
+      }
+    } finally {
+      setJokerBusy((prev) => ({ ...prev, [ex.name]: false }));
+    }
+  }
+
   async function save() {
     if (!day) return;
+
+    // Deviation check: any TM-driven meet-lift set logged above the prescribed
+    // weight without an approved/completed joker set needs a reason before saving.
+    if (!pendingDeviations) {
+      const deviations: DeviationDraft[] = [];
+      for (const ex of day.exercises) {
+        if (!ex.liftKey?.startsWith("meet_") || ex.percentOfTm == null) continue;
+        const tm = trainingMaxes[ex.liftKey];
+        if (tm == null) continue;
+        const increment = ex.unit === "kg" ? 2.5 : 5;
+        const prescribed = workingWeight(tm, ex.percentOfTm, increment);
+        const excusedIndex = jokerSetIndex[ex.name];
+        (sets[ex.name] ?? []).forEach((s, idx) => {
+          if (idx === excusedIndex) return;
+          const w = Number(s.weight);
+          if (w && w > prescribed * 1.02) {
+            deviations.push({
+              exerciseName: ex.name,
+              liftKey: ex.liftKey!,
+              prescribedWeight: prescribed,
+              actualWeight: w,
+              reason: "",
+              painScore: "0",
+              technicalRating: "5",
+            });
+          }
+        });
+      }
+      if (deviations.length > 0) {
+        setPendingDeviations(deviations);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const exercisesCompleted = day.exercises.map((ex) => ({
@@ -185,8 +371,19 @@ export function ProgramLogger({
       }));
 
       const trainingMaxAdjustments = day.exercises
-        .filter((ex) => ex.liftKey && tmResults[ex.name])
+        .filter((ex) => (ex.liftKey === "bench" || ex.liftKey === "deadlift") && tmResults[ex.name])
         .map((ex) => ({ lift: ex.liftKey, hit: tmResults[ex.name] === "hit" }));
+
+      const deviationReports = (pendingDeviations ?? []).map((d) => ({
+        exerciseName: d.exerciseName,
+        liftKey: d.liftKey,
+        weekNumber: day.week,
+        prescribedWeight: d.prescribedWeight,
+        actualWeight: d.actualWeight,
+        reason: d.reason,
+        painScore: d.painScore ? Number(d.painScore) : null,
+        technicalRating: d.technicalRating ? Number(d.technicalRating) : null,
+      }));
 
       const res = await fetch("/api/workouts", {
         method: "POST",
@@ -197,11 +394,13 @@ export function ProgramLogger({
           exercisesCompleted,
           completed: true,
           trainingMaxAdjustments,
+          deviationReports,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         clearDraft();
+        setPendingDeviations(null);
         if (data.newAchievements?.length) {
           setToast(data.newAchievements);
         } else {
@@ -214,6 +413,38 @@ export function ProgramLogger({
   }
 
   if (!day) return null;
+
+  const dayNeedsReadiness = day.exercises.some((ex) => ex.liftKey === "meet_bench" || ex.liftKey === "meet_deadlift");
+
+  if (dayNeedsReadiness && !readiness) {
+    return (
+      <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+        <h2 className="font-display uppercase tracking-wide text-sm text-jcf-gold mb-1">Readiness Check-In</h2>
+        <p className="text-jcf-gray text-xs mb-4">A quick read before today's session — this shapes how heavy today gets.</p>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {READINESS_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase tracking-wider text-jcf-gray">{label}</label>
+              <select
+                value={readinessForm[key]}
+                onChange={(e) => setReadinessForm((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                className="bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm text-white focus:outline-none focus:border-jcf-gold"
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        <Button onClick={submitReadiness} disabled={savingReadiness} className="w-full">
+          {savingReadiness ? "Saving..." : "Continue to Workout"}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -240,8 +471,26 @@ export function ProgramLogger({
           const last = lastPerformanceFor(recentLogs, ex.name);
           const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
           const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
-          const prescribedWeight = isTmDriven ? workingWeight(tm as number, ex.percentOfTm as number) : null;
+          const unitLabel = ex.unit === "kg" ? "kg" : "lb";
+          const increment = ex.unit === "kg" ? 2.5 : 5;
+          const rawPrescribedWeight = isTmDriven
+            ? workingWeight(tm as number, ex.percentOfTm as number, increment)
+            : null;
+          const canMarkResult = isTmDriven && (ex.liftKey === "bench" || ex.liftKey === "deadlift");
           const result = tmResults[ex.name];
+
+          const topSingle = isMeetTopSingle(ex);
+          const blocksHeavy = topSingle && readiness != null && (readiness.tier === "very_low" || readiness.joint_pain >= 4);
+          const reducesHeavy = topSingle && readiness != null && readiness.tier === "low";
+          const prescribedWeight =
+            reducesHeavy && rawPrescribedWeight != null ? workingWeight(rawPrescribedWeight, 95, increment) : rawPrescribedWeight;
+          const showPrescription = isTmDriven && !blocksHeavy;
+
+          const phase = topSingle ? phaseForWeek(day.week) : null;
+          const jokerWindowOpen = topSingle && !!phase?.startsWith("Intensification") && !blocksHeavy;
+          const jokerRequest = ex.liftKey ? jokerRequestForLift(day.week, ex.liftKey) : undefined;
+          const jokerError = jokerErrors[ex.name] ?? [];
+          const jokerIsBusy = !!jokerBusy[ex.name];
 
           return (
             <div key={ex.name} className="bg-jcf-panel border border-white/10 rounded-sm p-4">
@@ -252,15 +501,29 @@ export function ProgramLogger({
                 </span>
               </div>
               {ex.notes && <p className="text-xs text-jcf-gray mb-2">{ex.notes}</p>}
+              {(ex.targetRpe || ex.rpeCap != null) && (
+                <p className="text-[11px] text-jcf-gray mb-2">
+                  {ex.targetRpe && <>Target RPE {ex.targetRpe}</>}
+                  {ex.targetRpe && ex.rpeCap != null && " · "}
+                  {ex.rpeCap != null && <>Cap RPE {ex.rpeCap}</>}
+                </p>
+              )}
 
-              {isTmDriven && (
+              {blocksHeavy && (
+                <div className="mb-3 pb-3 border-b border-white/10 text-xs text-jcf-danger">
+                  Readiness is very low today{readiness && readiness.joint_pain >= 4 ? " (meaningful joint pain reported)" : ""} —
+                  today's heavy single is held. Technique work only; Jon will review before your next heavy session.
+                </div>
+              )}
+              {showPrescription && (
                 <div className="flex items-baseline justify-between mb-3 pb-3 border-b border-white/10">
                   <span className="text-xs text-jcf-gray">
-                    {ex.percentOfTm}% of {tm} lb training max
+                    {ex.percentOfTm}% of {tm} {unitLabel} training max
+                    {reducesHeavy && " · reduced ~5% for low readiness"}
                   </span>
                   <span className="text-jcf-gold font-display text-xl">
                     {prescribedWeight}
-                    <span className="text-xs text-jcf-gray font-sans ml-1">lb / set</span>
+                    <span className="text-xs text-jcf-gray font-sans ml-1">{unitLabel} / set</span>
                   </span>
                 </div>
               )}
@@ -309,7 +572,7 @@ export function ProgramLogger({
                 ))}
               </div>
 
-              {isTmDriven && (
+              {canMarkResult && (
                 <div className="mt-4">
                   <p className="text-[11px] text-jcf-gray mb-2">
                     Adjust weight or reps above if you called an audible, then mark the result.
@@ -343,16 +606,147 @@ export function ProgramLogger({
                   </p>
                 </div>
               )}
+
+              {jokerWindowOpen && !jokerRequest && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    disabled={jokerIsBusy || !sets[ex.name]?.[0]?.weight || !sets[ex.name]?.[0]?.rpe}
+                    onClick={() => requestJoker(ex)}
+                    className="w-full py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
+                  >
+                    {jokerIsBusy ? "Requesting..." : "Request Joker Set"}
+                  </button>
+                  {jokerError.length > 0 && (
+                    <ul className="mt-2 text-[11px] text-jcf-danger list-disc list-inside">
+                      {jokerError.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {jokerRequest && jokerRequest.status === "pending" && (
+                <div className="mt-4 pt-4 border-t border-white/10 text-xs text-jcf-gray">
+                  Joker set requested — awaiting coach approval.
+                </div>
+              )}
+              {jokerRequest && jokerRequest.status === "denied" && (
+                <div className="mt-4 pt-4 border-t border-white/10 text-xs text-jcf-danger">
+                  Joker set denied{jokerRequest.coach_response ? `: ${jokerRequest.coach_response}` : "."}
+                </div>
+              )}
+              {jokerRequest && jokerRequest.status === "approved" && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs text-jcf-gold mb-2">
+                    Joker approved — up to {jokerRequest.max_permitted_weight}
+                    {unitLabel}. Log the result once you've taken it.
+                  </p>
+                  {jokerSetIndex[ex.name] == null ? (
+                    <button
+                      type="button"
+                      onClick={() => addJokerResultSet(ex)}
+                      className="w-full py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10"
+                    >
+                      Add Joker Set Row
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        inputMode="decimal"
+                        placeholder={`Weight (${unitLabel})`}
+                        value={jokerResultDrafts[ex.name]?.weight ?? ""}
+                        onChange={(e) =>
+                          setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: e.target.value, rpe: prev[ex.name]?.rpe ?? "" } }))
+                        }
+                        className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      />
+                      <input
+                        inputMode="decimal"
+                        placeholder="RPE"
+                        value={jokerResultDrafts[ex.name]?.rpe ?? ""}
+                        onChange={(e) =>
+                          setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: prev[ex.name]?.weight ?? "", rpe: e.target.value } }))
+                        }
+                        className="w-24 shrink-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      />
+                      <button
+                        type="button"
+                        disabled={jokerIsBusy}
+                        onClick={() => submitJokerResult(ex, jokerRequest, Number(jokerResultDrafts[ex.name]?.rpe) > 8.5)}
+                        className="shrink-0 px-3 py-1.5 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
+                      >
+                        Log
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {jokerRequest && (jokerRequest.status === "completed" || jokerRequest.status === "failed_compliance") && (
+                <div className="mt-4 pt-4 border-t border-white/10 text-xs text-jcf-gray">
+                  Joker: {jokerRequest.actual_weight}
+                  {unitLabel} @ RPE {jokerRequest.actual_rpe} —{" "}
+                  {jokerRequest.status === "completed" ? "completed" : "missed"}.
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
+      {pendingDeviations && pendingDeviations.length > 0 && (
+        <div className="bg-jcf-panel border border-jcf-danger/40 rounded-sm p-4 mb-4">
+          <h3 className="text-xs uppercase tracking-widest text-jcf-danger mb-1">Weight Above Prescribed Limit</h3>
+          <p className="text-jcf-gray text-xs mb-3">
+            This weight exceeds today's prescribed limit. Completing the program as written is the goal of this
+            session — a few details for Jon's review, then you can save.
+          </p>
+          {pendingDeviations.map((d, i) => (
+            <div key={i} className="mb-3 pb-3 border-b border-white/10 last:border-b-0 last:pb-0 last:mb-0">
+              <p className="text-sm text-white mb-2">
+                {d.exerciseName} — logged {d.actualWeight}, prescribed {d.prescribedWeight}
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                <input
+                  placeholder="Reason for the deviation"
+                  value={d.reason}
+                  onChange={(e) =>
+                    setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, reason: e.target.value } : x)))
+                  }
+                  className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                />
+                <div className="flex gap-2">
+                  <input
+                    inputMode="numeric"
+                    placeholder="Pain score (0-5)"
+                    value={d.painScore}
+                    onChange={(e) =>
+                      setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, painScore: e.target.value } : x)))
+                    }
+                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                  />
+                  <input
+                    inputMode="numeric"
+                    placeholder="Technical rating (1-5)"
+                    value={d.technicalRating}
+                    onChange={(e) =>
+                      setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, technicalRating: e.target.value } : x)))
+                    }
+                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-2">
         <DraftStatus status={draftStatus} />
       </div>
       <Button onClick={save} disabled={saving} className="w-full">
-        {saving ? "Saving..." : "Mark Complete & Save"}
+        {saving ? "Saving..." : pendingDeviations ? "Confirm & Save" : "Mark Complete & Save"}
       </Button>
 
       {toast && <AchievementToast items={toast} onClose={() => setToast(null)} />}

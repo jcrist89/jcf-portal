@@ -29,6 +29,12 @@ function riskFor(s: ClientSummary): Risk {
   return "ok";
 }
 
+function hasMeetPrepAlert(s: ClientSummary): boolean {
+  const a = s.meetPrepAlert;
+  if (!a) return false;
+  return a.pendingJokers > 0 || a.readinessTier === "very_low" || (a.complianceScore != null && a.complianceScore < 70);
+}
+
 export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSummary[] }) {
   const [summaries, setSummaries] = useState(initialSummaries);
   const [live, setLive] = useState(false);
@@ -44,8 +50,9 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
     });
   }, [summaries]);
 
-  const needsAttention = sorted.filter((s) => s.profile.is_active && riskFor(s) !== "ok").length;
-  const visible = attentionOnly ? sorted.filter((s) => s.profile.is_active && riskFor(s) !== "ok") : sorted;
+  const needsCoachAttention = (s: ClientSummary) => riskFor(s) !== "ok" || hasMeetPrepAlert(s);
+  const needsAttention = sorted.filter((s) => s.profile.is_active && needsCoachAttention(s)).length;
+  const visible = attentionOnly ? sorted.filter((s) => s.profile.is_active && needsCoachAttention(s)) : sorted;
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +98,18 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload: any) => {
           const id = payload.new?.id ?? payload.old?.id;
+          if (id) refetch(id);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "joker_requests" }, (payload: any) => {
+          const id = payload.new?.profile_id ?? payload.old?.profile_id;
+          if (id) refetch(id);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "readiness_checkins" }, (payload: any) => {
+          const id = payload.new?.profile_id ?? payload.old?.profile_id;
+          if (id) refetch(id);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "deviation_reports" }, (payload: any) => {
+          const id = payload.new?.profile_id ?? payload.old?.profile_id;
           if (id) refetch(id);
         })
         .subscribe((status: string) => {
@@ -190,6 +209,23 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
               >
                 {activityLabel}
               </div>
+              {s.meetPrepAlert && hasMeetPrepAlert(s) && (
+                <div className="mt-2 pt-2 border-t border-white/10 flex flex-col gap-0.5">
+                  {s.meetPrepAlert.pendingJokers > 0 && (
+                    <span className="text-[10px] uppercase tracking-widest text-jcf-gold">
+                      {s.meetPrepAlert.pendingJokers} joker request{s.meetPrepAlert.pendingJokers === 1 ? "" : "s"}
+                    </span>
+                  )}
+                  {s.meetPrepAlert.readinessTier === "very_low" && (
+                    <span className="text-[10px] uppercase tracking-widest text-jcf-danger">Very low readiness today</span>
+                  )}
+                  {s.meetPrepAlert.complianceScore != null && s.meetPrepAlert.complianceScore < 70 && (
+                    <span className="text-[10px] uppercase tracking-widest text-jcf-danger">
+                      Compliance {s.meetPrepAlert.complianceScore}% — {s.meetPrepAlert.complianceCategory}
+                    </span>
+                  )}
+                </div>
+              )}
             </Link>
           );
         })}

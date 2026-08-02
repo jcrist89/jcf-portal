@@ -3,6 +3,7 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { detectNewPRs } from "@/lib/workoutHistory";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
 import { adjustTrainingMax } from "@/lib/trainingMax";
+import { notifyDeviationReported } from "@/lib/push";
 import type { WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -79,6 +80,28 @@ export async function POST(req: NextRequest) {
           .eq("lift", adj.lift);
       }
     }
+  }
+
+  // Deviation reports: exercises logged above the prescribed limit without an
+  // approved joker set (flagged client-side, captured here for coach review).
+  const deviationReports = Array.isArray(body.deviationReports) ? body.deviationReports : [];
+  if (deviationReports.length > 0) {
+    await client.from("deviation_reports").insert(
+      deviationReports.map((d: any) => ({
+        profile_id: profileId,
+        workout_log_id: log.id,
+        exercise_name: d.exerciseName,
+        lift_key: d.liftKey ?? null,
+        week_number: d.weekNumber ?? null,
+        prescribed_weight: d.prescribedWeight ?? null,
+        actual_weight: d.actualWeight,
+        reason: d.reason ?? null,
+        actual_rpe: d.actualRpe ?? null,
+        pain_score: d.painScore ?? null,
+        technical_rating: d.technicalRating ?? null,
+      })),
+    );
+    await notifyDeviationReported(profileId);
   }
 
   const newAchievements = await checkAndAwardAchievements(client, profileId, { newPrs });

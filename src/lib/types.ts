@@ -21,6 +21,7 @@ export interface Profile {
   subscription_status: SubscriptionStatus;
   is_active: boolean;
   onboarded: boolean;
+  welcome_email_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,9 @@ export interface Exercise {
   notes?: string;
   liftKey?: string;      // add this line — links to training_maxes.lift, e.g. "bench"
   percentOfTm?: number;  // add this line — e.g. 87 means 87% of that lift's training max
+  targetRpe?: string;    // e.g. "7-7.5" — display only
+  rpeCap?: number;       // e.g. 8 — the max RPE this set should be taken to
+  unit?: "kg" | "lb";    // rounding/display unit for liftKey-driven exercises; defaults to "lb"
 }
 
 export interface TrainingMax {
@@ -42,6 +46,10 @@ export interface TrainingMax {
   profile_id: string;
   lift: string;
   weight: number;
+  one_rm: number | null;
+  unit: "kg" | "lb";
+  tm_percent: number | null;
+  updated_by: string | null;
   updated_at: string;
 }
 
@@ -61,6 +69,25 @@ export interface ProgramStructure {
   weeks: ProgramWeek[];
 }
 
+export interface AttemptEntry {
+  opener: number | null;
+  second: number | null;
+  third: number | null;
+}
+
+export interface AttemptPlan {
+  bench: AttemptEntry;
+  deadlift: AttemptEntry;
+  released: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface ProgramWeaknesses {
+  bench: string[];
+  deadlift: string[];
+}
+
 export interface Program {
   id: string;
   goal: Goal;
@@ -71,6 +98,8 @@ export interface Program {
   is_default_template: boolean;
   client_id: string | null;
   meet_date: string | null;
+  attempt_plan: AttemptPlan | null;
+  weaknesses: ProgramWeaknesses | null;
   created_at: string;
   updated_at: string;
 }
@@ -153,6 +182,63 @@ export interface CoachNote {
   author: "coach" | "client";
   message: string;
   read: boolean;
+  created_at: string;
+}
+
+export type ReadinessTier = "high" | "moderate" | "low" | "very_low";
+
+export interface ReadinessCheckin {
+  id: string;
+  profile_id: string;
+  date: string;
+  sleep: number;
+  fatigue: number;
+  soreness: number;
+  joint_pain: number;
+  stress: number;
+  motivation: number;
+  nutrition: number;
+  confidence: number;
+  score: number;
+  tier: ReadinessTier;
+  created_at: string;
+}
+
+export type JokerStatus = "pending" | "approved" | "denied" | "completed" | "failed_compliance";
+
+export interface JokerRequest {
+  id: string;
+  profile_id: string;
+  program_id: string | null;
+  week_number: number;
+  lift: "meet_bench" | "meet_deadlift";
+  top_single_weight: number;
+  top_single_rpe: number;
+  max_permitted_weight: number;
+  status: JokerStatus;
+  coach_response: string | null;
+  actual_weight: number | null;
+  actual_rpe: number | null;
+  technical_result: string | null;
+  requested_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+}
+
+export interface DeviationReport {
+  id: string;
+  profile_id: string;
+  workout_log_id: string | null;
+  exercise_name: string;
+  lift_key: string | null;
+  week_number: number | null;
+  prescribed_weight: number | null;
+  actual_weight: number;
+  reason: string | null;
+  actual_rpe: number | null;
+  pain_score: number | null;
+  technical_rating: number | null;
+  reviewed: boolean;
   created_at: string;
 }
 
