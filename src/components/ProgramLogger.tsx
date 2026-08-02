@@ -494,13 +494,14 @@ export function ProgramLogger({
           const jokerIsBusy = !!jokerBusy[ex.name];
 
           return (
-            <div key={ex.name} className="bg-jcf-panel border border-white/10 rounded-sm p-4">
-              <div className="flex items-baseline justify-between mb-1">
+            <details key={ex.name} open className="group bg-jcf-panel border border-white/10 rounded-sm p-4">
+              <summary className="flex items-baseline justify-between mb-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <h3 className="font-display uppercase text-sm tracking-wide">{ex.name}</h3>
-                <span className="text-xs text-jcf-gray">
+                <span className="text-xs text-jcf-gray flex items-center gap-2">
                   {ex.sets}x{ex.reps} · rest {ex.rest}
+                  <span className="inline-block transition-transform group-open:rotate-180">▾</span>
                 </span>
-              </div>
+              </summary>
               {ex.notes && <p className="text-xs text-jcf-gray mb-2">{ex.notes}</p>}
               {(ex.targetRpe || ex.rpeCap != null) && (
                 <p className="text-[11px] text-jcf-gray mb-2">
@@ -691,7 +692,7 @@ export function ProgramLogger({
                   {jokerRequest.status === "completed" ? "completed" : "missed"}.
                 </div>
               )}
-            </div>
+            </details>
           );
         })}
       </div>

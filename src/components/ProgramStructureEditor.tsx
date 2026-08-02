@@ -41,6 +41,7 @@ export function ProgramStructureEditor({
   }
 
   function removeWeek(wi: number) {
+    if (!window.confirm(`Remove Week ${structure.weeks[wi].week} and all its days/exercises? This can't be undone.`)) return;
     updateStructure((s) => {
       s.weeks.splice(wi, 1);
       return s;
@@ -56,6 +57,7 @@ export function ProgramStructureEditor({
   }
 
   function removeDay(wi: number, di: number) {
+    if (!window.confirm(`Remove "${structure.weeks[wi].days[di].label}" and its exercises?`)) return;
     updateStructure((s) => {
       s.weeks[wi].days.splice(di, 1);
       return s;

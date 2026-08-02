@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
@@ -149,6 +150,7 @@ function LogMeasurementForm({
   focus: "weight" | "all";
   profileId: string;
 }) {
+  const router = useRouter();
   const localKey = `jcf-draft-measurement-${profileId}`;
   const draftKey = "current";
 
@@ -191,7 +193,7 @@ function LogMeasurementForm({
         if (data.newAchievements?.length) onLogged(data.newAchievements);
         setOpen(false);
         setForm(BLANK_MEASUREMENT_DRAFT);
-        location.reload();
+        router.refresh();
       }
     } finally {
       setSaving(false);
@@ -254,6 +256,7 @@ function LogPrForm({
   onLogged: (a: { title: string; description: string }[]) => void;
   profileId: string;
 }) {
+  const router = useRouter();
   const localKey = `jcf-draft-pr-${profileId}`;
   const draftKey = "current";
 
@@ -291,7 +294,7 @@ function LogPrForm({
         if (data.newAchievements?.length) onLogged(data.newAchievements);
         setOpen(false);
         setForm(BLANK_PR_DRAFT);
-        location.reload();
+        router.refresh();
       }
     } finally {
       setSaving(false);

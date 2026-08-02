@@ -40,6 +40,7 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
   const [live, setLive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [search, setSearch] = useState("");
   const summariesRef = useRef(summaries);
   summariesRef.current = summaries;
 
@@ -52,7 +53,14 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
 
   const needsCoachAttention = (s: ClientSummary) => riskFor(s) !== "ok" || hasMeetPrepAlert(s);
   const needsAttention = sorted.filter((s) => s.profile.is_active && needsCoachAttention(s)).length;
-  const visible = attentionOnly ? sorted.filter((s) => s.profile.is_active && needsCoachAttention(s)) : sorted;
+  const query = search.trim().toLowerCase();
+  const matchesSearch = (s: ClientSummary) =>
+    !query ||
+    (s.profile.full_name ?? "").toLowerCase().includes(query) ||
+    (s.profile.email ?? "").toLowerCase().includes(query);
+  const visible = (attentionOnly ? sorted.filter((s) => s.profile.is_active && needsCoachAttention(s)) : sorted).filter(
+    matchesSearch
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -151,6 +159,14 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
         <Button onClick={() => setShowCreate(true)}>+ New Client</Button>
       </div>
 
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search clients by name or email..."
+        className="w-full sm:w-72 bg-jcf-panel border border-white/15 rounded-sm px-3 py-2 text-sm text-white placeholder:text-jcf-gray/60 focus:outline-none focus:border-jcf-gold mb-4"
+      />
+
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -231,7 +247,11 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
         })}
         {visible.length === 0 && (
           <p className="text-jcf-gray text-sm col-span-full">
-            {summaries.length === 0 ? "No clients yet — add your first one." : "No one needs a check-in right now."}
+            {summaries.length === 0
+              ? "No clients yet — add your first one."
+              : query
+              ? "No clients match your search."
+              : "No one needs a check-in right now."}
           </p>
         )}
       </div>
@@ -288,7 +308,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               An invite email was sent to <span className="text-white">{email}</span> so they can set their
               own password and log in.
             </p>
-            <Button onClick={() => location.reload()} className="w-full mt-4">Done</Button>
+            <Button onClick={onClose} className="w-full mt-4">Done</Button>
           </div>
         ) : (
           <>

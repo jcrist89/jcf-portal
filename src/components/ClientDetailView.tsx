@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Button } from "@/components/Button";
@@ -115,6 +116,7 @@ export function ClientDetailView({
 }
 
 function OverviewTab({ profile }: { profile: Profile }) {
+  const router = useRouter();
   const [fullName, setFullName] = useState(profile.full_name ?? "");
   const [birthday, setBirthday] = useState(profile.birthday ?? "");
   const [heightIn, setHeightIn] = useState(profile.height_in?.toString() ?? "");
@@ -168,6 +170,8 @@ function OverviewTab({ profile }: { profile: Profile }) {
 
   async function toggleActive() {
     if (profile.is_active) {
+      const name = profile.full_name ?? profile.email;
+      if (!window.confirm(`Deactivate ${name}? They'll lose access until you reactivate them.`)) return;
       await fetch(`/api/clients/${profile.id}`, { method: "DELETE" });
     } else {
       await fetch(`/api/clients/${profile.id}`, {
@@ -176,7 +180,7 @@ function OverviewTab({ profile }: { profile: Profile }) {
         body: JSON.stringify({ is_active: true }),
       });
     }
-    location.reload();
+    router.refresh();
   }
 
   return (
@@ -239,11 +243,25 @@ function ProgramTab({
   jokerRequests: JokerRequest[];
   workoutLogs: WorkoutLog[];
 }) {
+  const router = useRouter();
   const [swapping, setSwapping] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const flat = flattenProgram(program);
   const trainingMaxRecord: Record<string, number> = {};
   for (const tm of trainingMaxes) trainingMaxRecord[tm.lift] = Number(tm.weight);
+
+  // Meet-prep tools (training maxes, joker requests, attempt plan, weaknesses) only
+  // matter for powerlifting clients — keep them out of the way for everyone else,
+  // unless this client already has meet-prep data on record (e.g. goal changed
+  // after the fact) or the coach explicitly asks to see them.
+  const hasMeetPrepData =
+    jokerRequests.length > 0 ||
+    trainingMaxes.some((t) => t.lift === "meet_bench" || t.lift === "meet_deadlift") ||
+    !!program?.attempt_plan ||
+    !!program?.weaknesses;
+  const meetPrepRelevant = program?.goal === "powerlifting" || hasMeetPrepData;
+  const [manuallyShowMeetPrep, setManuallyShowMeetPrep] = useState(false);
+  const showMeetPrep = meetPrepRelevant || manuallyShowMeetPrep;
 
   async function swapProgram(templateId: string) {
     setSwapping(true);
@@ -255,7 +273,7 @@ function ProgramTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal: template.goal, program_id: templateId }),
       });
-      location.reload();
+      router.refresh();
     } finally {
       setSwapping(false);
     }
@@ -312,22 +330,34 @@ function ProgramTab({
         </div>
       </div>
 
-      <MeetPrepTmPanel profileId={profile.id} trainingMaxes={trainingMaxes} />
-      <div className="mt-6">
-        <JokerRequestsPanel jokerRequests={jokerRequests} />
-      </div>
-      <div className="mt-6">
-        <ComplianceTrendPanel profileId={profile.id} />
-      </div>
-      {program && (
-        <div className="mt-6">
-          <AttemptPlanPanel program={program} trainingMaxes={trainingMaxes} />
-        </div>
-      )}
-      {program && (
-        <div className="mt-6">
-          <WeaknessesPanel program={program} />
-        </div>
+      {showMeetPrep ? (
+        <>
+          <MeetPrepTmPanel profileId={profile.id} trainingMaxes={trainingMaxes} />
+          <div className="mt-6">
+            <JokerRequestsPanel jokerRequests={jokerRequests} />
+          </div>
+          <div className="mt-6">
+            <ComplianceTrendPanel profileId={profile.id} />
+          </div>
+          {program && (
+            <div className="mt-6">
+              <AttemptPlanPanel program={program} trainingMaxes={trainingMaxes} />
+            </div>
+          )}
+          {program && (
+            <div className="mt-6">
+              <WeaknessesPanel program={program} />
+            </div>
+          )}
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setManuallyShowMeetPrep(true)}
+          className="text-jcf-gray text-xs uppercase tracking-widest hover:text-jcf-gold"
+        >
+          Show Meet-Prep Tools →
+        </button>
       )}
     </div>
   );

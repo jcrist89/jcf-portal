@@ -18,6 +18,20 @@ export function MessageThread({
   const [sending, setSending] = useState(false);
   const noteIds = useRef(new Set(initialNotes.map((n) => n.id)));
 
+  function markRead() {
+    fetch("/api/notes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId }),
+    }).catch(() => {});
+  }
+
+  // Opening a thread marks whatever the other party already sent as read.
+  useEffect(() => {
+    markRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
+
   useEffect(() => {
     const supabase = getBrowserClient();
     let cancelled = false;
@@ -45,6 +59,9 @@ export function MessageThread({
             if (noteIds.current.has(note.id)) return;
             noteIds.current.add(note.id);
             setNotes((prev) => [...prev, note]);
+            // The thread is open right now, so a message from the other party
+            // arriving live counts as read immediately.
+            if (note.author !== viewerRole) markRead();
           }
         )
         .subscribe();
