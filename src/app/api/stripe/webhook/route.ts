@@ -106,6 +106,50 @@ export async function POST(req: NextRequest) {
       // they're actually paying for.
       const priceId = sub.items.data[0]?.price?.id;
       const resyncedTier = tierFromPriceId(priceId);
+
+      const updates: Record<string, unknown> = { subscription_status: status, stripe_subscription_id: sub.id };
+      if (resyncedTier) updates.tier = resyncedTier;
+
+      // Whether this subscription is ours at all is decided by whether it matches
+      // a profile. This endpoint is subscribed account-wide, and the same Stripe
+      // account also carries subscriptions sold outside the portal — their events
+      // land here too. Do the write first, then let the match count decide how
+      // loudly (if at all) to report what happened.
+      const { data: matched, error: matchError } = profileId
+        ? await admin.from("profiles").update(updates).eq("id", profileId).select("id")
+        : await admin.from("profiles").update(updates).eq("stripe_subscription_id", sub.id).select("id");
+
+      if (matchError) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "subscription.updated failed to write the matched profile",
+          context: { subscriptionId: sub.id, error: matchError.message },
+          profileId: profileId ?? null,
+        });
+        break;
+      }
+
+      if (!matched || matched.length === 0) {
+        // Metadata naming a profile that no longer exists is a real problem —
+        // that subscription came through our own checkout. Nothing matching with
+        // no metadata at all just means the subscription was never created here,
+        // which is expected and not worth putting in front of the coach.
+        await logEvent(admin, {
+          level: profileId ? "error" : "info",
+          source: "stripe.webhook",
+          message: profileId
+            ? "subscription.updated names a profile_id that no longer exists"
+            : "subscription.updated ignored — not a portal subscription",
+          context: { subscriptionId: sub.id },
+          profileId: profileId ?? null,
+        });
+        break;
+      }
+
+      // Only meaningful once the subscription is known to be ours: an unrecognized
+      // price on a portal subscription means profiles.tier is now out of sync with
+      // what the client is actually paying for.
       if (!resyncedTier) {
         await logEvent(admin, {
           level: "warning",
@@ -114,26 +158,6 @@ export async function POST(req: NextRequest) {
           context: { subscriptionId: sub.id, priceId: priceId ?? null },
           profileId: profileId ?? null,
         });
-      }
-      const updates: Record<string, unknown> = { subscription_status: status, stripe_subscription_id: sub.id };
-      if (resyncedTier) updates.tier = resyncedTier;
-
-      if (profileId) {
-        await admin.from("profiles").update(updates).eq("id", profileId);
-      } else {
-        const { data: matched, error: matchError } = await admin
-          .from("profiles")
-          .update(updates)
-          .eq("stripe_subscription_id", sub.id)
-          .select("id");
-        if (!matchError && (!matched || matched.length === 0)) {
-          await logEvent(admin, {
-            level: "error",
-            source: "stripe.webhook",
-            message: "subscription.updated matched no profile",
-            context: { subscriptionId: sub.id },
-          });
-        }
       }
       break;
     }

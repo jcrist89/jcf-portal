@@ -128,6 +128,81 @@ describe("POST /api/stripe/webhook", () => {
     expect(db.tables.profiles[0].subscription_status).toBe("canceled");
   });
 
+  it("quietly ignores a subscription that was never created through the portal", async () => {
+    // Same Stripe account, different product — the endpoint is subscribed
+    // account-wide, so these events arrive here and must not raise an error the
+    // coach has to triage on /coach/monitoring.
+    nextEvent = {
+      id: "evt_foreign",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_sold_elsewhere",
+          status: "active",
+          metadata: {},
+          items: { data: [{ price: { id: "price_some_other_product" } }] },
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    const res = await POST(fakeRequest());
+    expect(res.status).toBe(200);
+
+    const logged = db.tables.event_log ?? [];
+    expect(logged.map((e) => e.level)).toEqual(["info"]);
+    // The unrecognized-price warning must not fire either — there's no tier to
+    // resync on a subscription that isn't ours.
+    expect(logged.some((e) => e.message.includes("unrecognized price"))).toBe(false);
+  });
+
+  it("still errors when metadata names a profile that does not exist", async () => {
+    nextEvent = {
+      id: "evt_orphan",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_1",
+          status: "active",
+          metadata: { profile_id: "client-deleted" },
+          items: { data: [{ price: { id: "price_coach" } }] },
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    const logged = db.tables.event_log ?? [];
+    expect(logged).toHaveLength(1);
+    expect(logged[0].level).toBe("error");
+    expect(logged[0].profile_id).toBe("client-deleted");
+  });
+
+  it("warns about an unrecognized price only when the subscription is ours", async () => {
+    db.tables.profiles[0].stripe_subscription_id = "sub_1";
+    db.tables.profiles[0].tier = "paid_coaching";
+    nextEvent = {
+      id: "evt_badprice",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_1",
+          status: "active",
+          metadata: {},
+          items: { data: [{ price: { id: "price_retired" } }] },
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    const logged = db.tables.event_log ?? [];
+    expect(logged).toHaveLength(1);
+    expect(logged[0].level).toBe("warning");
+    // Status still syncs; only the tier is left alone.
+    expect(db.tables.profiles[0].subscription_status).toBe("active");
+    expect(db.tables.profiles[0].tier).toBe("paid_coaching");
+  });
+
   it("rejects when the signature is missing", async () => {
     const req = { headers: { get: () => null }, text: async () => "raw" } as any;
     const { POST } = await import("./route");
