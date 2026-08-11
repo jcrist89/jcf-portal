@@ -1,6 +1,4 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 import { flattenProgram } from "@/lib/program";
@@ -15,15 +13,10 @@ import { ProgramLogger } from "@/components/ProgramLogger";
  * this is a plain hypertrophy program, not a meet-prep block.
  */
 export default async function CoachMyProgramPage() {
-  const user = await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client.from("profiles").select("*").eq("id", user.id).single();
+  const { client, session: user, profile } = await requireUser("coach");
 
   const [{ data: program }, { data: workoutLogs }] = await Promise.all([
-    profile?.program_id
+    profile.program_id
       ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
       : Promise.resolve({ data: null }),
     client.from("workout_logs").select("*").eq("profile_id", user.id).order("date", { ascending: false }),

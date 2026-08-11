@@ -1,6 +1,4 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 
@@ -20,10 +18,7 @@ const LEVEL_STYLES: Record<string, string> = {
  * each logEvent() call for exactly what's included).
  */
 export default async function MonitoringPage({ searchParams }: { searchParams: { before?: string } }) {
-  await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client } = await requireUser("coach");
 
   let query = client
     .from("event_log")

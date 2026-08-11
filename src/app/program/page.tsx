@@ -1,6 +1,4 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { flattenProgram } from "@/lib/program";
@@ -9,12 +7,7 @@ import { ProgramLogger } from "@/components/ProgramLogger";
 import { kgToLb } from "@/lib/meetPrep/attemptPlanner";
 
 export default async function ProgramPage() {
-  const user = await requireUser("client");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client.from("profiles").select("*").eq("id", user.id).single();
+  const { client, session: user, profile } = await requireUser("client");
 
   const today = new Date().toISOString().slice(0, 10);
 

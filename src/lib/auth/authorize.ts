@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import type { AppUser, Tier } from "@/lib/types";
+import { supabaseForRequest, type RequestContext } from "@/lib/supabase/server";
+import type { Tier } from "@/lib/types";
 
-export type RequestCtx = { client: SupabaseClient; session: AppUser };
+export type RequestCtx = RequestContext;
 
 export function unauthorized(message = "Not authenticated."): NextResponse {
   return NextResponse.json({ error: message }, { status: 401 });

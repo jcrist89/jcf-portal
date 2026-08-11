@@ -8,17 +8,13 @@ export default async function OnboardingPage({
 }: {
   searchParams: { checkout?: string };
 }) {
+  // Deliberately not requireUser("client"): that redirects an un-onboarded
+  // client to /onboarding, which is this page.
   const ctx = await supabaseForRequest();
   if (!ctx) redirect("/login");
-  const { client, session } = ctx;
+  const { session, profile } = ctx;
 
   if (session.onboarded) redirect(session.role === "coach" ? "/coach" : "/dashboard");
-
-  const { data: profile } = await client
-    .from("profiles")
-    .select("goal, tier, subscription_status")
-    .eq("id", session.id)
-    .maybeSingle();
 
   const checkoutStatus = searchParams.checkout === "success" ? "success" : searchParams.checkout === "cancelled" ? "cancelled" : null;
   const planActive = profile?.tier !== "free" && profile?.subscription_status === "active";

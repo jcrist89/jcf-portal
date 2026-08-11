@@ -1,6 +1,4 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { BillingPanel } from "@/components/BillingPanel";
@@ -19,16 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function BillingPage() {
-  const user = await requireUser("client");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client
-    .from("profiles")
-    .select("tier, subscription_status, stripe_customer_id")
-    .eq("id", user.id)
-    .single();
+  const { profile } = await requireUser("client");
 
   return (
     <div className="pb-24">

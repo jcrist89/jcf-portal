@@ -1,10 +1,15 @@
 import { redirect } from "next/navigation";
-import { supabaseForRequest } from "@/lib/supabase/server";
+import { supabaseForRequest, type RequestContext } from "@/lib/supabase/server";
 import type { Role, AppUser } from "@/lib/types";
 
 /** Server-component helper: redirect to /login unless a valid session exists
- * (optionally requiring a specific role). */
-export async function requireUser(role?: Role): Promise<AppUser> {
+ * (optionally requiring a specific role).
+ *
+ * Returns the whole request context — client, session, and profile row — because
+ * resolving any one of them already resolved all three. Pages should destructure
+ * what they need from this rather than calling supabaseForRequest() again, which
+ * would repeat both the auth.getUser() round-trip and the profiles select. */
+export async function requireUser(role?: Role): Promise<RequestContext> {
   const ctx = await supabaseForRequest();
   if (!ctx) redirect("/login");
   const { session } = ctx;
@@ -20,7 +25,7 @@ export async function requireUser(role?: Role): Promise<AppUser> {
   if (role === "client" && !session.onboarded) {
     redirect("/onboarding");
   }
-  return session;
+  return ctx;
 }
 
 export async function getUser(): Promise<AppUser | null> {

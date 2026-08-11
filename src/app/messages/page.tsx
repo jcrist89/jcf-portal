@@ -1,13 +1,11 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { MessageThread } from "@/components/MessageThread";
 import type { CoachNote } from "@/lib/types";
 
 export default async function MessagesPage() {
-  const user = await requireUser("client");
+  const { client, session: user } = await requireUser("client");
 
   if (user.tier !== "paid_coaching") {
     return (
@@ -31,10 +29,6 @@ export default async function MessagesPage() {
       </div>
     );
   }
-
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
 
   const { data: notes } = await client
     .from("coach_notes")

@@ -5,7 +5,7 @@ import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { NotificationOptIn } from "@/components/NotificationOptIn";
 
 export default async function SettingsPage() {
-  const user = await requireUser();
+  const { session: user } = await requireUser();
 
   return (
     <div className="pb-24">

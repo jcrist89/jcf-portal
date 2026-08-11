@@ -1,15 +1,10 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/ClientNav";
 import { ProgressView } from "@/components/ProgressView";
 import type { Measurement, PR } from "@/lib/types";
 
 export default async function ProgressPage() {
-  const user = await requireUser("client");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client, session: user } = await requireUser("client");
 
   const [{ data: measurements }, { data: prs }] = await Promise.all([
     client.from("measurements").select("*").eq("profile_id", user.id).order("date", { ascending: true }),

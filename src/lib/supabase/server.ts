@@ -1,7 +1,20 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, Profile } from "@/lib/types";
+
+/**
+ * Everything a page or route handler needs about the current request, resolved
+ * once: the RLS-bound client, the merged auth+profile session, and the full
+ * profile row. `profile` is included so callers that need columns beyond the
+ * session summary (program_id, weights, goal, billing fields) don't re-query a
+ * row that was already fetched to build the session.
+ */
+export interface RequestContext {
+  client: SupabaseClient;
+  session: AppUser;
+  profile: Profile;
+}
 
 /**
  * Request-scoped Supabase client bound to the real Supabase Auth session cookie.
@@ -35,8 +48,12 @@ export function createClient(): SupabaseClient {
 /**
  * Convenience wrapper used across pages/route handlers: returns the request-scoped
  * client plus the merged auth + profile user, or null if there's no signed-in user.
+ *
+ * Pages should reach this through requireUser() rather than calling it directly —
+ * requireUser() calls this internally, so doing both costs a duplicate
+ * auth.getUser() round-trip and a duplicate profiles select on every render.
  */
-export async function supabaseForRequest(): Promise<{ client: SupabaseClient; session: AppUser } | null> {
+export async function supabaseForRequest(): Promise<RequestContext | null> {
   const client = createClient();
   const {
     data: { user: authUser },
@@ -59,5 +76,5 @@ export async function supabaseForRequest(): Promise<{ client: SupabaseClient; se
     onboarded: profile.onboarded,
   };
 
-  return { client, session };
+  return { client, session, profile: profile as Profile };
 }

@@ -1,5 +1,4 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CoachNav } from "@/components/CoachNav";
 import { ProgramStructureEditor } from "@/components/ProgramStructureEditor";
@@ -9,13 +8,8 @@ import type { Program } from "@/lib/types";
  * the same editor the client-side /program/edit page uses. Permission is
  * enforced by the programs_update RLS policy — a coach can edit any program. */
 export default async function EditMyProgramPage() {
-  const user = await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client.from("profiles").select("program_id").eq("id", user.id).single();
-  if (!profile?.program_id) redirect("/coach/my-program");
+  const { client, profile } = await requireUser("coach");
+  if (!profile.program_id) redirect("/coach/my-program");
 
   const { data: program } = await client.from("programs").select("*").eq("id", profile.program_id).maybeSingle();
   if (!program) redirect("/coach/my-program");

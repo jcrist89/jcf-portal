@@ -1,20 +1,13 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/ClientNav";
 import { ProgramStructureEditor } from "@/components/ProgramStructureEditor";
 import type { Program } from "@/lib/types";
 
 export default async function EditProgramPage() {
-  const user = await requireUser("client");
+  const { client, session: user, profile } = await requireUser("client");
   if (user.tier === "free") redirect("/program");
-
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client.from("profiles").select("program_id").eq("id", user.id).single();
-  if (!profile?.program_id) redirect("/program");
+  if (!profile.program_id) redirect("/program");
 
   const { data: program } = await client.from("programs").select("*").eq("id", profile.program_id).maybeSingle();
   if (!program) redirect("/program");

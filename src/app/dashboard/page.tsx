@@ -1,28 +1,20 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/ClientNav";
 import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
 import { nextDayUp } from "@/lib/program";
 import { computeStreak, buildNudge, daysSinceLastLog, accountAgeInDays } from "@/lib/dashboardStats";
-import type { Profile, Program, WorkoutLog } from "@/lib/types";
+import type { Program, WorkoutLog } from "@/lib/types";
 
 export default async function DashboardPage() {
-  const user = await requireUser("client");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
-
-  const { data: profile } = await client.from("profiles").select("*").eq("id", user.id).single();
+  const { client, session: user, profile: p } = await requireUser("client");
 
   const [{ data: program }, { data: workoutLogs }] = await Promise.all([
-    profile.program_id
-      ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
+    p.program_id
+      ? client.from("programs").select("*").eq("id", p.program_id).maybeSingle()
       : Promise.resolve({ data: null }),
     client.from("workout_logs").select("*").eq("profile_id", user.id).order("date", { ascending: false }),
   ]);
 
-  const p = profile as Profile;
   const logs = (workoutLogs ?? []) as WorkoutLog[];
   const completedLogs = logs.filter((l) => l.completed);
   const upNext = nextDayUp(program as Program | null, completedLogs.length);

@@ -1,15 +1,11 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { CoachNav } from "@/components/CoachNav";
 import { ClientDetailView } from "@/components/ClientDetailView";
 import type { Achievement, CoachNote, JokerRequest, Measurement, PR, Profile, Program, TrainingMax, WorkoutLog } from "@/lib/types";
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
-  await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client } = await requireUser("coach");
 
   const { data: profile } = await client.from("profiles").select("*").eq("id", params.id).maybeSingle();
   if (!profile) notFound();

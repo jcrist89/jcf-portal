@@ -1,15 +1,10 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { CoachNav } from "@/components/CoachNav";
 import Link from "next/link";
 import type { Program } from "@/lib/types";
 
 export default async function TemplatesPage() {
-  await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client } = await requireUser("coach");
 
   const { data: templates } = await client
     .from("programs")

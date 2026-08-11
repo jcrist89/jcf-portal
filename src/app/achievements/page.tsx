@@ -1,16 +1,11 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/ClientNav";
 import { ACHIEVEMENT_CATALOG } from "@/lib/achievements";
 import { AchievementIcon } from "@/components/AchievementIcon";
 import type { Achievement } from "@/lib/types";
 
 export default async function AchievementsPage() {
-  const user = await requireUser("client");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client, session: user } = await requireUser("client");
 
   const { data: achievements } = await client
     .from("achievements")

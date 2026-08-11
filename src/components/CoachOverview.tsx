@@ -35,7 +35,13 @@ function hasMeetPrepAlert(s: ClientSummary): boolean {
   return a.pendingJokers > 0 || a.readinessTier === "very_low" || (a.complianceScore != null && a.complianceScore < 70);
 }
 
-export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSummary[] }) {
+export function CoachOverview({
+  initialSummaries,
+  viewerId,
+}: {
+  initialSummaries: ClientSummary[];
+  viewerId: string;
+}) {
   const [summaries, setSummaries] = useState(initialSummaries);
   const [live, setLive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -68,8 +74,15 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function refetch(profileId: string) {
+      // The coach's own rows flow through these same tables (they log personal
+      // workouts via /coach/my-program) and RLS lets the coach see every row, so
+      // their own activity would otherwise add them to their own client grid.
+      // Checked before the fetch so a coach's workout doesn't cost 8 queries to
+      // then throw away; the role check below covers any other non-client row.
+      if (profileId === viewerId) return;
       const updated = await computeClientSummary(supabase, profileId);
       if (!updated || cancelled) return;
+      if (updated.profile.role !== "client") return;
       setSummaries((prev) => {
         const exists = prev.some((s) => s.profile.id === profileId);
         if (exists) return prev.map((s) => (s.profile.id === profileId ? updated : s));
@@ -131,7 +144,7 @@ export function CoachOverview({ initialSummaries }: { initialSummaries: ClientSu
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [viewerId]);
 
   return (
     <div>

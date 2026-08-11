@@ -1,6 +1,5 @@
 import { requireUser } from "@/lib/auth/require";
-import { supabaseForRequest } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
@@ -16,10 +15,7 @@ import type { Profile, Program, WorkoutLog } from "@/lib/types";
  * is disabled here; everything else is plain display, same as the real page.
  */
 export default async function ClientPreviewPage({ params }: { params: { id: string } }) {
-  await requireUser("coach");
-  const ctx = await supabaseForRequest();
-  if (!ctx) redirect("/login");
-  const { client } = ctx;
+  const { client } = await requireUser("coach");
 
   const { data: profile } = await client.from("profiles").select("*").eq("id", params.id).maybeSingle();
   if (!profile || profile.role !== "client") notFound();

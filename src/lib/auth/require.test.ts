@@ -35,7 +35,7 @@ describe("requireUser — interrupted onboarding recovery", () => {
     mockSupabaseForRequest.mockResolvedValue({ client: {}, session: session({ onboarded: true }) });
     const { requireUser } = await import("./require");
     const result = await requireUser("client");
-    expect(result.onboarded).toBe(true);
+    expect(result.session.onboarded).toBe(true);
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
@@ -43,7 +43,7 @@ describe("requireUser — interrupted onboarding recovery", () => {
     mockSupabaseForRequest.mockResolvedValue({ client: {}, session: session({ onboarded: false }) });
     const { requireUser } = await import("./require");
     const result = await requireUser();
-    expect(result.onboarded).toBe(false);
+    expect(result.session.onboarded).toBe(false);
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
