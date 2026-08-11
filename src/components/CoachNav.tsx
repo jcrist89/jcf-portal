@@ -7,6 +7,7 @@ const links = [
   { href: "/coach", label: "All Clients" },
   { href: "/coach/templates", label: "Templates" },
   { href: "/coach/monitoring", label: "Monitoring" },
+  { href: "/coach/my-program", label: "My Training" },
   { href: "/settings", label: "Settings" },
 ];
 
