@@ -10,6 +10,7 @@ import { workingWeight } from "@/lib/trainingMax";
 import { phaseForWeek } from "@/lib/meetPrep/generateProgram";
 import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
 import { useDraftSync } from "@/lib/hooks/useDraftSync";
+import { reconcileSets, type SetInput } from "@/lib/workoutDraft";
 
 const READINESS_FIELDS: { key: keyof ReadinessFormState; label: string }[] = [
   { key: "sleep", label: "Sleep Quality" },
@@ -45,12 +46,6 @@ interface DeviationDraft {
   reason: string;
   painScore: string;
   technicalRating: string;
-}
-
-interface SetInput {
-  reps: string;
-  weight: string;
-  rpe: string;
 }
 
 interface DraftPayload {
@@ -95,9 +90,10 @@ function loadLocalOrDefault(
   recentLogs: WorkoutLog[],
   trainingMaxes: Record<string, number>
 ): DraftPayload {
+  const defaults = day ? buildInitialSets(day, recentLogs, trainingMaxes) : {};
   const draft = readLocalDraft<DraftPayload>(localKey);
-  if (draft) return draft;
-  return { sets: day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}, tmResults: {} };
+  if (!draft) return { sets: defaults, tmResults: {} };
+  return { sets: reconcileSets(draft.sets, defaults), tmResults: draft.tmResults ?? {} };
 }
 
 async function fetchServerDraftFallback(
@@ -163,13 +159,12 @@ export function ProgramLogger({
   const localKey = `jcf-draft-workout-${profileId}-${programId}-${dayIndex}`;
   const draftKey = `${programId}:${dayIndex}`;
 
-  const [sets, setSets] = useState<Record<string, SetInput[]>>(
-    () => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes).sets
-  );
-  const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>(
-    () => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes).tmResults
-  );
+  const [initialDraft] = useState(() => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes));
+  const [sets, setSets] = useState<Record<string, SetInput[]>>(initialDraft.sets);
+  const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>(initialDraft.tmResults);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [readinessError, setReadinessError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ title: string; description: string }[] | null>(null);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
@@ -181,7 +176,9 @@ export function ProgramLogger({
     let cancelled = false;
     fetchServerDraftFallback(draftKey, localKey, (payload) => {
       if (cancelled) return;
-      setSets(payload.sets);
+      // A server-recovered draft can be arbitrarily old — reconcile it against
+      // the program's current exercises the same way a local one is.
+      setSets(reconcileSets(payload.sets, day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}));
       setTmResults(payload.tmResults ?? {});
     });
     return () => {
@@ -240,14 +237,18 @@ export function ProgramLogger({
 
   async function submitReadiness() {
     setSavingReadiness(true);
+    setReadinessError(null);
     try {
       const res = await fetch("/api/readiness", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(readinessForm),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok) setReadiness(data.readiness);
+      else setReadinessError(data?.error ?? "Couldn't save your check-in. Try again.");
+    } catch {
+      setReadinessError("You appear to be offline — your check-in wasn't saved.");
     } finally {
       setSavingReadiness(false);
     }
@@ -360,11 +361,15 @@ export function ProgramLogger({
     }
 
     setSaving(true);
+    setSaveError(null);
     try {
       const exercisesCompleted = day.exercises.map((ex) => ({
         name: ex.name,
         unit: ex.unit ?? "lb",
-        sets: sets[ex.name].map((s) => ({
+        // Defaulted rather than indexed blind: reconcileSets should always have
+        // populated this, but a missing key here used to throw and kill the save
+        // with no feedback at all. An empty set list is a recoverable outcome.
+        sets: (sets[ex.name] ?? []).map((s) => ({
           reps: s.reps ? Number(s.reps) : null,
           weight: s.weight ? Number(s.weight) : null,
           rpe: s.rpe ? Number(s.rpe) : null,
@@ -398,16 +403,22 @@ export function ProgramLogger({
           deviationReports,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok) {
         clearDraft();
         setPendingDeviations(null);
-        if (data.newAchievements?.length) {
+        if (data?.newAchievements?.length) {
           setToast(data.newAchievements);
         } else {
           setToast([{ title: "Workout Logged", description: "Nice work — see you next session." }]);
         }
+      } else {
+        // The draft is deliberately left intact — nothing typed is lost, and
+        // retrying is the right next move.
+        setSaveError(data?.error ?? "Couldn't save this workout. Your entries are still saved as a draft.");
       }
+    } catch {
+      setSaveError("You appear to be offline. Your entries are saved as a draft — try again once you're back.");
     } finally {
       setSaving(false);
     }
@@ -440,6 +451,11 @@ export function ProgramLogger({
             </div>
           ))}
         </div>
+        {readinessError && (
+          <p role="alert" className="text-jcf-danger text-sm mb-2">
+            {readinessError}
+          </p>
+        )}
         <Button onClick={submitReadiness} disabled={savingReadiness} className="w-full">
           {savingReadiness ? "Saving..." : "Continue to Workout"}
         </Button>
@@ -755,6 +771,11 @@ export function ProgramLogger({
       <div className="flex items-center justify-between mb-2">
         <DraftStatus status={draftStatus} />
       </div>
+      {saveError && (
+        <p role="alert" className="text-jcf-danger text-sm mb-2">
+          {saveError}
+        </p>
+      )}
       <Button onClick={save} disabled={saving} className="w-full">
         {saving ? "Saving..." : pendingDeviations ? "Confirm & Save" : "Mark Complete & Save"}
       </Button>
