@@ -4,7 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { JcfWordmark } from "./JcfLogo";
 
 const links = [
-  { href: "/coach", label: "All Clients" },
+  { href: "/coach", label: "Who Needs Me" },
+  { href: "/coach/clients", label: "All Clients" },
   { href: "/coach/templates", label: "Templates" },
   { href: "/coach/monitoring", label: "Monitoring" },
   { href: "/coach/my-program", label: "My Training" },
