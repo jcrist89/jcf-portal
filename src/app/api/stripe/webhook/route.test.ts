@@ -203,6 +203,98 @@ describe("POST /api/stripe/webhook", () => {
     expect(db.tables.profiles[0].tier).toBe("paid_coaching");
   });
 
+  it("retries rather than silently dropping a paid checkout whose entitlement write fails", async () => {
+    // FakeSupabase never fails, so force the profiles update to report the kind of
+    // transient error the handler used to discard.
+    const realFrom = db.from.bind(db);
+    let failNextProfileWrite = true;
+    vi.spyOn(db, "from").mockImplementation((table: string) => {
+      const builder = realFrom(table);
+      if (table === "profiles" && failNextProfileWrite) {
+        failNextProfileWrite = false;
+        (builder as any).maybeSingle = async () => ({ data: null, error: { message: "connection reset" } });
+      }
+      return builder;
+    });
+
+    nextEvent = {
+      id: "evt_write_fail",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_1",
+          metadata: { profile_id: "client-1", tier: "paid_programming" },
+          subscription: "sub_1",
+          customer: "cus_1",
+        },
+      },
+    };
+    const { POST } = await import("./route");
+
+    const res1 = await POST(fakeRequest());
+    expect(res1.status).toBe(500);
+    expect(db.tables.stripe_events ?? []).toHaveLength(0);
+    expect(sendWelcomeEmailOnce).not.toHaveBeenCalled();
+    expect((db.tables.event_log ?? []).some((e) => e.level === "error")).toBe(true);
+
+    // Stripe retries; the write succeeds this time and the client is provisioned.
+    const res2 = await POST(fakeRequest());
+    expect(res2.status).toBe(200);
+    expect(db.tables.profiles[0].tier).toBe("paid_programming");
+    expect(sendWelcomeEmailOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("records, without retrying, a checkout naming a profile that does not exist", async () => {
+    nextEvent = {
+      id: "evt_ghost",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_1",
+          metadata: { profile_id: "client-deleted", tier: "paid_coaching" },
+          subscription: "sub_1",
+          customer: "cus_1",
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    const res = await POST(fakeRequest());
+
+    // Permanent condition — a retry can't conjure the profile, so the claim stands.
+    expect(res.status).toBe(200);
+    expect(db.tables.stripe_events).toHaveLength(1);
+    expect(sendWelcomeEmailOnce).not.toHaveBeenCalled();
+    const logged = db.tables.event_log ?? [];
+    expect(logged).toHaveLength(1);
+    expect(logged[0].level).toBe("error");
+    expect(logged[0].profile_id).toBe("client-deleted");
+  });
+
+  it("refuses to write an unrecognized tier from checkout metadata", async () => {
+    nextEvent = {
+      id: "evt_bad_tier",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_1",
+          metadata: { profile_id: "client-1", tier: "paid_platinum" },
+          subscription: "sub_1",
+          customer: "cus_1",
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    expect(db.tables.profiles[0].tier).toBe("free");
+    expect(db.tables.profiles[0].subscription_status).toBe("n/a");
+    expect(sendWelcomeEmailOnce).not.toHaveBeenCalled();
+    const logged = db.tables.event_log ?? [];
+    expect(logged).toHaveLength(1);
+    expect(logged[0].level).toBe("error");
+    expect(logged[0].message).toContain("unrecognized tier");
+  });
+
   it("releases the idempotency claim when the handler fails, so Stripe's retry reprocesses", async () => {
     nextEvent = {
       id: "evt_fail",
