@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, tierFromPriceId } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendWelcomeEmailOnce } from "@/lib/email/sendWelcome";
@@ -14,47 +15,14 @@ function statusFromSubscription(sub: Stripe.Subscription): "active" | "past_due"
   return "canceled";
 }
 
-export async function POST(req: NextRequest) {
-  const signature = req.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Webhook not configured." }, { status: 400 });
-  }
+/** The subscription an invoice was raised for (expanded or not), or null for a
+ *  one-off invoice with no subscription behind it. */
+function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
+  if (!invoice.subscription) return null;
+  return typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription.id;
+}
 
-  const rawBody = await req.text();
-  const stripe = getStripe();
-
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch (err) {
-    return NextResponse.json({ error: `Invalid signature: ${(err as Error).message}` }, { status: 400 });
-  }
-
-  const admin = supabaseAdmin();
-
-  // Idempotency: Stripe delivers at-least-once, so the same event can arrive more
-  // than once. Record the event id before processing; if it's already there, this
-  // is a retried delivery — skip re-processing (still return 200 so Stripe doesn't
-  // keep retrying).
-  const { error: dedupeError } = await admin
-    .from("stripe_events")
-    .insert({ id: event.id, event_type: event.type });
-  if (dedupeError) {
-    // Unique violation (23505) means we've already processed this event id.
-    if (dedupeError.code === "23505") {
-      return NextResponse.json({ received: true, duplicate: true });
-    }
-    await logEvent(admin, {
-      level: "error",
-      source: "stripe.webhook",
-      message: "Failed to record event for idempotency",
-      context: { eventId: event.id, eventType: event.type, error: dedupeError.message },
-    });
-    // Don't process without a recorded dedupe row — fail closed and let Stripe retry.
-    return NextResponse.json({ error: "Could not record event." }, { status: 500 });
-  }
-
+async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -165,26 +133,157 @@ export async function POST(req: NextRequest) {
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
       const profileId = sub.metadata?.profile_id;
-      const query = admin.from("profiles").update({ subscription_status: "canceled", tier: "free" });
-      if (profileId) await query.eq("id", profileId);
-      else await query.eq("stripe_subscription_id", sub.id);
+
+      // Scope the downgrade to this exact subscription even when metadata names the
+      // profile. Matching on profile_id alone downgrades whatever subscription the
+      // profile currently holds, which isn't necessarily the one being deleted: a
+      // client who cancels at period end and resubscribes before that date already
+      // has a newer subscription on their profile by the time this event fires for
+      // the old one, and would be dropped to free while paying.
+      let query = admin
+        .from("profiles")
+        .update({ subscription_status: "canceled", tier: "free" })
+        .eq("stripe_subscription_id", sub.id);
+      if (profileId) query = query.eq("id", profileId);
+      const { data: matched, error: matchError } = await query.select("id");
+
+      if (matchError) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "subscription.deleted failed to write the matched profile",
+          context: { subscriptionId: sub.id, error: matchError.message },
+          profileId: profileId ?? null,
+        });
+        break;
+      }
+
+      if (!matched || matched.length === 0) {
+        // With metadata, a miss means the profile has since moved to a different
+        // subscription — worth surfacing, but as a warning: ignoring the event is
+        // the correct outcome here, not a failure. Without metadata it's just an
+        // account-wide event for a subscription that was never ours.
+        await logEvent(admin, {
+          level: profileId ? "warning" : "info",
+          source: "stripe.webhook",
+          message: profileId
+            ? "subscription.deleted ignored — profile has since moved to a different subscription"
+            : "subscription.deleted ignored — not a portal subscription",
+          context: { subscriptionId: sub.id },
+          profileId: profileId ?? null,
+        });
+      }
       break;
     }
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const customerId = invoice.customer ? String(invoice.customer) : null;
-      if (customerId) {
-        await admin
-          .from("profiles")
-          .update({ subscription_status: "past_due" })
-          .eq("stripe_customer_id", customerId);
+      // Key on the subscription, not the customer. This endpoint is subscribed
+      // account-wide and the same Stripe account carries subscriptions sold outside
+      // the portal, so matching on stripe_customer_id alone let a failed payment on
+      // an unrelated subscription — or on a one-off invoice — mark a portal client
+      // past_due while they were fully paid up on their portal plan.
+      const subscriptionId = subscriptionIdFromInvoice(invoice);
+      if (!subscriptionId) {
+        await logEvent(admin, {
+          level: "info",
+          source: "stripe.webhook",
+          message: "invoice.payment_failed ignored — invoice has no subscription",
+          context: { invoiceId: invoice.id },
+        });
+        break;
+      }
+
+      const { data: matched, error: matchError } = await admin
+        .from("profiles")
+        .update({ subscription_status: "past_due" })
+        .eq("stripe_subscription_id", subscriptionId)
+        .select("id");
+
+      if (matchError) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "invoice.payment_failed failed to write the matched profile",
+          context: { invoiceId: invoice.id, subscriptionId, error: matchError.message },
+        });
+        break;
+      }
+
+      if (!matched || matched.length === 0) {
+        await logEvent(admin, {
+          level: "info",
+          source: "stripe.webhook",
+          message: "invoice.payment_failed ignored — not a portal subscription",
+          context: { invoiceId: invoice.id, subscriptionId },
+        });
       }
       break;
     }
 
     default:
       break;
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const signature = req.headers.get("stripe-signature");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!signature || !webhookSecret) {
+    return NextResponse.json({ error: "Webhook not configured." }, { status: 400 });
+  }
+
+  const rawBody = await req.text();
+  const stripe = getStripe();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+  } catch (err) {
+    return NextResponse.json({ error: `Invalid signature: ${(err as Error).message}` }, { status: 400 });
+  }
+
+  const admin = supabaseAdmin();
+
+  // Idempotency: Stripe delivers at-least-once, so the same event can arrive more
+  // than once. Claim the event id before processing; if it's already there, this
+  // is a retried delivery — skip re-processing (still return 200 so Stripe doesn't
+  // keep retrying).
+  const { error: dedupeError } = await admin
+    .from("stripe_events")
+    .insert({ id: event.id, event_type: event.type });
+  if (dedupeError) {
+    // Unique violation (23505) means we've already processed this event id.
+    if (dedupeError.code === "23505") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    await logEvent(admin, {
+      level: "error",
+      source: "stripe.webhook",
+      message: "Failed to record event for idempotency",
+      context: { eventId: event.id, eventType: event.type, error: dedupeError.message },
+    });
+    // Don't process without a recorded dedupe row — fail closed and let Stripe retry.
+    return NextResponse.json({ error: "Could not record event." }, { status: 500 });
+  }
+
+  try {
+    await processEvent(admin, event);
+  } catch (err) {
+    // That row is written before the work, so it's a claim on the event, not a
+    // record that the work finished. Leaving it behind after a failure would make
+    // Stripe's retry hit the 23505 branch and skip the event permanently — a
+    // client could pay and never be provisioned, with no further deliveries left
+    // to recover from. Release the claim so the retry actually reprocesses.
+    // Released before logging, so a logging failure can't strand the claim.
+    await admin.from("stripe_events").delete().eq("id", event.id);
+    await logEvent(admin, {
+      level: "error",
+      source: "stripe.webhook",
+      message: "Handler failed — released the idempotency claim for Stripe to retry",
+      context: { eventId: event.id, eventType: event.type, error: (err as Error)?.message },
+    });
+    return NextResponse.json({ error: "Handler failed." }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
