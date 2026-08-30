@@ -15,6 +15,14 @@ function statusFromSubscription(sub: Stripe.Subscription): "active" | "past_due"
   return "canceled";
 }
 
+/** The only tiers a completed subscription checkout can legitimately grant.
+ *  "free" is a valid Tier but never the result of paying for something. */
+const PAID_TIERS: Tier[] = ["paid_programming", "paid_coaching"];
+
+function isPaidTier(value: string): value is Tier {
+  return (PAID_TIERS as string[]).includes(value);
+}
+
 /** The subscription an invoice was raised for (expanded or not), or null for a
  *  one-off invoice with no subscription behind it. */
 function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
@@ -36,29 +44,67 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
           context: { sessionId: session.id, hasProfileId: !!profileId, hasTier: !!tier, hasSubscription: !!session.subscription },
           profileId: typeof profileId === "string" ? profileId : null,
         });
+        break;
       }
-      if (profileId && tier && session.subscription) {
-        const { data: profile } = await admin
-          .from("profiles")
-          .update({
-            tier,
-            subscription_status: "active",
-            stripe_customer_id: String(session.customer),
-            stripe_subscription_id: String(session.subscription),
-          })
-          .eq("id", profileId)
-          .select("id, email, full_name")
-          .maybeSingle();
 
-        if (profile) {
-          await sendWelcomeEmailOnce(admin, {
-            id: profile.id,
-            email: profile.email,
-            full_name: profile.full_name,
-            tier: tier as Tier,
-          });
-        }
+      // Stripe metadata is a free-form string bag — our own checkout validates the
+      // tier before setting it, but anything with dashboard access can write it
+      // too, and the value lands directly in profiles.tier. An unrecognized string
+      // is either rejected by the column or leaves the client in a tier requireTier
+      // never matches, locking them out of everything they just paid for.
+      if (!isPaidTier(tier)) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "checkout.session.completed carries an unrecognized tier — not applied",
+          context: { sessionId: session.id, tier },
+          profileId,
+        });
+        break;
       }
+
+      const { data: profile, error: updateError } = await admin
+        .from("profiles")
+        .update({
+          tier,
+          subscription_status: "active",
+          stripe_customer_id: String(session.customer),
+          stripe_subscription_id: String(session.subscription),
+        })
+        .eq("id", profileId)
+        .select("id, email, full_name")
+        .maybeSingle();
+
+      // The client has already paid by this point, so a failed entitlement write is
+      // the worst outcome this handler has. Throw rather than log-and-continue:
+      // that releases the idempotency claim in POST and lets Stripe retry, which is
+      // the only route back to a provisioned account.
+      if (updateError) {
+        throw new Error(
+          `checkout.session.completed could not grant ${tier} to profile ${profileId}: ${updateError.message}`,
+        );
+      }
+
+      // No error but no row means the id simply isn't there. Retrying can't conjure
+      // a profile, so record it for the coach to chase instead of burning Stripe's
+      // retry budget on a permanent condition.
+      if (!profile) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "checkout.session.completed names a profile_id that does not exist",
+          context: { sessionId: session.id, subscriptionId: String(session.subscription) },
+          profileId,
+        });
+        break;
+      }
+
+      await sendWelcomeEmailOnce(admin, {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        tier,
+      });
       break;
     }
 
