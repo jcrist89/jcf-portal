@@ -11,6 +11,8 @@ import { phaseForWeek } from "@/lib/meetPrep/generateProgram";
 import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
 import { useDraftSync } from "@/lib/hooks/useDraftSync";
 import { reconcileSets, type SetInput } from "@/lib/workoutDraft";
+import { RoughShiftSheet } from "@/components/RoughShiftSheet";
+import { planRoughShift, type RoughShiftReason, type ScalingPlan } from "@/domain/scaling";
 
 const READINESS_FIELDS: { key: keyof ReadinessFormState; label: string }[] = [
   { key: "sleep", label: "Sleep Quality" },
@@ -158,6 +160,13 @@ export function ProgramLogger({
   const [jokerSetIndex, setJokerSetIndex] = useState<Record<string, number>>({});
 
   const [pendingDeviations, setPendingDeviations] = useState<DeviationDraft[] | null>(null);
+
+  // Rough Shift. `preview` is what the client is being offered; `applied` is what they
+  // accepted and will be logged against. Kept apart so backing out restores the full
+  // session rather than a half-scaled one.
+  const [roughShiftOpen, setRoughShiftOpen] = useState(false);
+  const [preview, setPreview] = useState<ScalingPlan | null>(null);
+  const [applied, setApplied] = useState<ScalingPlan | null>(null);
 
   const localKey = `jcf-draft-workout-${profileId}-${programId}-${dayIndex}`;
   const draftKey = `${programId}:${dayIndex}`;
@@ -327,6 +336,57 @@ export function ProgramLogger({
     }
   }
 
+  function previewRoughShift(reason: RoughShiftReason) {
+    if (!day) return;
+    setPreview(
+      planRoughShift(
+        day.exercises.map((ex, i) => ({
+          exerciseId: ex.exerciseId,
+          name: ex.name,
+          position: i + 1,
+          sets: typeof ex.sets === "number" ? String(ex.sets) : ex.sets,
+          reps: ex.reps,
+          percentOfTm: ex.percentOfTm ?? null,
+          liftKey: ex.liftKey ?? null,
+        })),
+        reason,
+      ),
+    );
+  }
+
+  function applyRoughShift() {
+    if (!preview) return;
+    setApplied(preview);
+    setRoughShiftOpen(false);
+    setPreview(null);
+    // Trim the entered sets to the reduced count. Dropped exercises keep their rows in
+    // state but are not rendered or submitted, so backing out costs nothing.
+    setSets((prev) => {
+      const next = { ...prev };
+      for (const e of preview.exercises) {
+        if (e.action === "drop") continue;
+        const target = Math.max(1, parseInt(String(e.sets ?? "1"), 10) || 1);
+        const current = next[e.source.name] ?? [];
+        next[e.source.name] = current.slice(0, target);
+        while (next[e.source.name].length < target) {
+          next[e.source.name] = [...next[e.source.name], { reps: "", weight: "", rpe: "" }];
+        }
+      }
+      return next;
+    });
+  }
+
+  function cancelRoughShift() {
+    setRoughShiftOpen(false);
+    setPreview(null);
+    setApplied(null);
+  }
+
+  /** Exercises still in play — a dropped one is neither shown nor logged. */
+  function isDropped(name: string): boolean {
+    return applied?.exercises.some((e) => e.source.name === name && e.action === "drop") ?? false;
+  }
+
   async function save() {
     if (!day) return;
 
@@ -366,7 +426,7 @@ export function ProgramLogger({
     setSaving(true);
     setSaveError(null);
     try {
-      const exercisesCompleted = day.exercises.map((ex) => ({
+      const exercisesCompleted = day.exercises.filter((ex) => !isDropped(ex.name)).map((ex) => ({
         name: ex.name,
         // Carried from the prescription so this log stays joinable to the exercise
         // even if the coach renames it later.
@@ -406,6 +466,9 @@ export function ProgramLogger({
           // a client browsing to a different day must not close today's row.
           assignmentSessionId: dayIndex === defaultIndex ? assignmentSessionId : null,
           dayLabel: `Week ${day.week} — ${day.label}`,
+          // Recorded as scaled, never as skipped: the session happened.
+          scalingMode: applied ? "rough_shift" : null,
+          scalingReason: applied?.reason ?? null,
           exercisesCompleted,
           completed: true,
           trainingMaxAdjustments,
@@ -492,8 +555,40 @@ export function ProgramLogger({
 
       {day.weekNote && <p className="text-xs text-jcf-gray mb-4 italic">{day.weekNote}</p>}
 
+      {roughShiftOpen && (
+        <RoughShiftSheet
+          plan={preview}
+          onPickReason={previewRoughShift}
+          onApply={applyRoughShift}
+          onCancel={cancelRoughShift}
+        />
+      )}
+
+      {applied && (
+        <div className="bg-jcf-gold/10 border border-jcf-gold/40 rounded-sm p-3 mb-4 flex items-center justify-between gap-3">
+          <p className="text-jcf-gold text-xs">{applied.summary}</p>
+          <button
+            type="button"
+            onClick={cancelRoughShift}
+            className="shrink-0 text-jcf-gray text-xs uppercase tracking-wide hover:text-white"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
+      {!roughShiftOpen && !applied && (
+        <button
+          type="button"
+          onClick={() => setRoughShiftOpen(true)}
+          className="w-full mb-4 px-3 py-3 rounded-sm text-xs uppercase tracking-wide border border-white/15 text-jcf-gray hover:border-jcf-gold hover:text-jcf-gold"
+        >
+          Rough shift — cut today down
+        </button>
+      )}
+
       <div className="flex flex-col gap-4 mb-6">
-        {day.exercises.map((ex) => {
+        {day.exercises.filter((ex) => !isDropped(ex.name)).map((ex) => {
           const last = lastPerformanceFor(recentLogs, ex);
           const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
           const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
