@@ -127,24 +127,25 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
       // Whether this subscription is ours at all is decided by whether it matches
       // a profile. This endpoint is subscribed account-wide, and the same Stripe
       // account also carries subscriptions sold outside the portal — their events
-      // land here too. Do the write first, then let the match count decide how
-      // loudly (if at all) to report what happened.
-      const { data: matched, error: matchError } = profileId
-        ? await admin.from("profiles").update(updates).eq("id", profileId).select("id")
-        : await admin.from("profiles").update(updates).eq("stripe_subscription_id", sub.id).select("id");
+      // land here too. Resolve the target first rather than writing blind: with
+      // metadata present the old code wrote by profile id alone, which says nothing
+      // about whether this event still describes that profile's current plan.
+      const { data: target, error: lookupError } = profileId
+        ? await admin.from("profiles").select("id, stripe_subscription_id").eq("id", profileId).maybeSingle()
+        : await admin.from("profiles").select("id, stripe_subscription_id").eq("stripe_subscription_id", sub.id).maybeSingle();
 
-      if (matchError) {
+      if (lookupError) {
         await logEvent(admin, {
           level: "error",
           source: "stripe.webhook",
-          message: "subscription.updated failed to write the matched profile",
-          context: { subscriptionId: sub.id, error: matchError.message },
+          message: "subscription.updated could not resolve the target profile",
+          context: { subscriptionId: sub.id, error: lookupError.message },
           profileId: profileId ?? null,
         });
         break;
       }
 
-      if (!matched || matched.length === 0) {
+      if (!target) {
         // Metadata naming a profile that no longer exists is a real problem —
         // that subscription came through our own checkout. Nothing matching with
         // no metadata at all just means the subscription was never created here,
@@ -161,6 +162,37 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
         break;
       }
 
+      // Stripe doesn't guarantee event ordering, and a delayed or retried delivery
+      // for a subscription the profile has already moved off would otherwise pull
+      // stripe_subscription_id back to the dead one and apply its stale status and
+      // price — downgrading someone who is paying, and pointing the profile at a
+      // subscription whose future events no longer match anything. A null id is
+      // still fair game: that's a profile whose checkout hasn't landed yet, and
+      // this event is the first thing to describe the subscription.
+      if (target.stripe_subscription_id && target.stripe_subscription_id !== sub.id) {
+        await logEvent(admin, {
+          level: "warning",
+          source: "stripe.webhook",
+          message: "subscription.updated ignored — profile has since moved to a different subscription",
+          context: { subscriptionId: sub.id, currentSubscriptionId: target.stripe_subscription_id },
+          profileId: target.id,
+        });
+        break;
+      }
+
+      const { error: matchError } = await admin.from("profiles").update(updates).eq("id", target.id);
+
+      if (matchError) {
+        await logEvent(admin, {
+          level: "error",
+          source: "stripe.webhook",
+          message: "subscription.updated failed to write the matched profile",
+          context: { subscriptionId: sub.id, error: matchError.message },
+          profileId: target.id,
+        });
+        break;
+      }
+
       // Only meaningful once the subscription is known to be ours: an unrecognized
       // price on a portal subscription means profiles.tier is now out of sync with
       // what the client is actually paying for.
@@ -170,7 +202,7 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
           source: "stripe.webhook",
           message: "subscription.updated with unrecognized price — tier not resynced",
           context: { subscriptionId: sub.id, priceId: priceId ?? null },
-          profileId: profileId ?? null,
+          profileId: target.id,
         });
       }
       break;
