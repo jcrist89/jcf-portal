@@ -203,6 +203,87 @@ describe("POST /api/stripe/webhook", () => {
     expect(db.tables.profiles[0].tier).toBe("paid_coaching");
   });
 
+  it("releases the idempotency claim when the handler fails, so Stripe's retry reprocesses", async () => {
+    nextEvent = {
+      id: "evt_fail",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_1",
+          metadata: { profile_id: "client-1", tier: "paid_programming" },
+          subscription: "sub_1",
+          customer: "cus_1",
+        },
+      },
+    };
+    const { POST } = await import("./route");
+
+    sendWelcomeEmailOnce.mockRejectedValueOnce(new Error("SMTP down"));
+    const res1 = await POST(fakeRequest());
+    expect(res1.status).toBe(500);
+    // The claim must not survive the failure — otherwise the retry below would
+    // short-circuit on 23505 and the event would never be processed at all.
+    expect(db.tables.stripe_events ?? []).toHaveLength(0);
+
+    const res2 = await POST(fakeRequest());
+    expect(res2.status).toBe(200);
+    expect((await res2.json()).duplicate).toBeUndefined();
+    expect(sendWelcomeEmailOnce).toHaveBeenCalledTimes(2);
+    expect(db.tables.profiles[0].tier).toBe("paid_programming");
+  });
+
+  it("does not downgrade a client whose old subscription is deleted after they resubscribed", async () => {
+    // Cancelled at period end, then resubscribed before that date: the profile is
+    // already on sub_2 when sub_1's deletion finally fires.
+    db.tables.profiles[0].stripe_subscription_id = "sub_2";
+    db.tables.profiles[0].tier = "paid_coaching";
+    db.tables.profiles[0].subscription_status = "active";
+    nextEvent = {
+      id: "evt_stale_delete",
+      type: "customer.subscription.deleted",
+      data: { object: { id: "sub_1", metadata: { profile_id: "client-1" } } },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    expect(db.tables.profiles[0].tier).toBe("paid_coaching");
+    expect(db.tables.profiles[0].subscription_status).toBe("active");
+    expect((db.tables.event_log ?? []).map((e) => e.level)).toEqual(["warning"]);
+  });
+
+  it("ignores a failed payment on an unrelated subscription for the same customer", async () => {
+    // Same Stripe customer also holds a subscription sold outside the portal.
+    db.tables.profiles[0].stripe_customer_id = "cus_1";
+    db.tables.profiles[0].stripe_subscription_id = "sub_1";
+    db.tables.profiles[0].subscription_status = "active";
+    nextEvent = {
+      id: "evt_foreign_invoice",
+      type: "invoice.payment_failed",
+      data: { object: { id: "in_1", customer: "cus_1", subscription: "sub_sold_elsewhere" } },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    expect(db.tables.profiles[0].subscription_status).toBe("active");
+    expect((db.tables.event_log ?? []).map((e) => e.level)).toEqual(["info"]);
+  });
+
+  it("still marks past_due when the failed invoice is for the profile's own subscription", async () => {
+    db.tables.profiles[0].stripe_customer_id = "cus_1";
+    db.tables.profiles[0].stripe_subscription_id = "sub_1";
+    db.tables.profiles[0].subscription_status = "active";
+    nextEvent = {
+      id: "evt_own_invoice",
+      type: "invoice.payment_failed",
+      data: { object: { id: "in_2", customer: "cus_1", subscription: "sub_1" } },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    expect(db.tables.profiles[0].subscription_status).toBe("past_due");
+    expect(db.tables.event_log ?? []).toHaveLength(0);
+  });
+
   it("rejects when the signature is missing", async () => {
     const req = { headers: { get: () => null }, text: async () => "raw" } as any;
     const { POST } = await import("./route");
