@@ -85,8 +85,15 @@ export async function GET(req: NextRequest) {
   }
 
   const mismatches = await checkTierMismatches(admin);
+  const missedSessions = await markMissedSessions(admin);
 
-  return NextResponse.json({ checked: clients.length, sent, failed, tierMismatches: mismatches });
+  return NextResponse.json({
+    checked: clients.length,
+    sent,
+    failed,
+    tierMismatches: mismatches,
+    missedSessions,
+  });
 }
 
 /**
@@ -130,4 +137,24 @@ async function checkTierMismatches(admin: ReturnType<typeof supabaseAdmin>): Pro
   }
 
   return mismatches.length;
+}
+
+/**
+ * Drops sessions a date-anchored block has run past, in each client's own timezone.
+ * Without a daily sweep the prescribed/skipped split is a snapshot that goes stale
+ * overnight, and a peaking block starts queuing work it can no longer fit before the
+ * meet. Sequential assignments are untouched — there a missed session waits.
+ */
+async function markMissedSessions(admin: ReturnType<typeof supabaseAdmin>): Promise<number> {
+  const { data, error } = await admin.rpc("mark_missed_sessions");
+  if (error) {
+    await logEvent(admin, {
+      level: "error",
+      source: "cron.missed_sessions",
+      message: "Failed to sweep missed sessions",
+      context: { error: error.message },
+    });
+    return 0;
+  }
+  return typeof data === "number" ? data : 0;
 }

@@ -179,11 +179,38 @@ class FakeQueryBuilder {
 export class FakeSupabase {
   tables: Record<string, Row[]> = {};
 
+  /** Registered rpc() responses, keyed by function name. See stubRpc. */
+  private rpcHandlers: Record<string, (args: Row) => unknown> = {};
+
   constructor(seed: Record<string, Row[]> = {}) {
     for (const [k, v] of Object.entries(seed)) this.tables[k] = v.map((r) => ({ ...r }));
   }
 
   from(table: string) {
     return new FakeQueryBuilder(this.tables, table);
+  }
+
+  /**
+   * Registers what a Postgres function returns. Server-side logic increasingly lives in
+   * SQL functions (materialize_assignment_sessions, mark_missed_sessions) because
+   * Supabase offers no client-side transaction, so callers of those need a way to say
+   * what came back.
+   */
+  stubRpc(fn: string, handler: (args: Row) => unknown) {
+    this.rpcHandlers[fn] = handler;
+    return this;
+  }
+
+  /**
+   * Unstubbed calls return an error rather than a plausible default. A silent default
+   * would let a route that calls the wrong function, or forgets to handle a failure,
+   * pass its tests.
+   */
+  async rpc(fn: string, args: Row = {}) {
+    const handler = this.rpcHandlers[fn];
+    if (!handler) {
+      return { data: null, error: { message: `FakeSupabase: no stub registered for rpc("${fn}")` } };
+    }
+    return { data: handler(args), error: null };
   }
 }

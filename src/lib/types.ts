@@ -255,6 +255,74 @@ export interface JokerRequest {
   resolved_by: string | null;
 }
 
+export type AssignmentStatus = "active" | "superseded" | "completed" | "abandoned";
+export type SessionStatus =
+  | "prescribed" | "in_progress" | "completed" | "scaled" | "skipped" | "superseded";
+export type ScalingMode = "rough_shift" | "no_equipment" | "short_on_time";
+
+/** A client's program, anchored to a calendar and expanded into real sessions. */
+export interface ProgramAssignment {
+  id: string;
+  profile_id: string;
+  program_id: string;
+  engagement_id: string | null;
+  starts_on: string;
+  timezone: string;
+  schedule_mode: ScheduleMode;
+  weekday_pattern: number[] | null;
+  status: AssignmentStatus;
+  superseded_by: string | null;
+  materialized_at: string | null;
+  /** programs.updated_at when sessions were last built — lets staleness be detected. */
+  source_updated_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One prescribed session, with a date and a status. */
+export interface AssignmentSession {
+  id: string;
+  assignment_id: string;
+  profile_id: string;
+  week_number: number;
+  day_number: number;
+  /** Flat position across the block, so "next undone" is an ordering. */
+  sequence: number;
+  scheduled_local_date: string | null;
+  label: string | null;
+  status: SessionStatus;
+  scaling_mode: ScalingMode | null;
+  scaling_reason: string | null;
+  workout_log_id: string | null;
+  completed_on: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The prescription for one exercise within a session, snapshotted at assignment time. */
+export interface SessionExercise {
+  id: string;
+  session_id: string;
+  exercise_id: string;
+  position: number;
+  /** 1 = keep under Short on Time, 3 = first to drop. */
+  priority: number;
+  prescribed_sets: string | null;
+  prescribed_reps: string | null;
+  rest: string | null;
+  percent_of_tm: number | null;
+  rpe_cap: number | null;
+  target_rpe: string | null;
+  unit: "kg" | "lb" | null;
+  lift_key: string | null;
+  coach_note: string | null;
+  substitute_exercise_id: string | null;
+  scaled_sets: string | null;
+  scaled_reps: string | null;
+  created_at: string;
+}
+
 export type FormDraftType = "workout" | "measurement" | "pr";
 
 export interface FormDraft {

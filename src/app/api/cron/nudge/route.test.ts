@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe("GET /api/cron/nudge", () => {
   it("rejects a request without the correct bearer secret", async () => {
-    db = new FakeSupabase({ profiles: [] });
+    db = new FakeSupabase({ profiles: [] }).stubRpc("mark_missed_sessions", () => 0);
     const { GET } = await import("./route");
     const res = await GET(fakeRequest("wrong"));
     expect(res.status).toBe(401);
@@ -32,7 +32,7 @@ describe("GET /api/cron/nudge", () => {
       workout_logs: [{ id: "w1", profile_id: "c1", date: eightDaysAgo, completed: true }],
       measurements: [],
       prs: [],
-    });
+    }).stubRpc("mark_missed_sessions", () => 0);
     const { GET } = await import("./route");
     const res = await GET(fakeRequest());
     const body = await res.json();
@@ -51,7 +51,7 @@ describe("GET /api/cron/nudge", () => {
       measurements: [],
       prs: [],
       event_log: [],
-    });
+    }).stubRpc("mark_missed_sessions", () => 0);
     // Force a failure only for c1 by making its push send throw.
     sendPushToProfile.mockImplementation(async (profileId: string) => {
       if (profileId === "c1") throw new Error("push provider down");
@@ -87,7 +87,7 @@ describe("GET /api/cron/nudge", () => {
       measurements: [],
       prs: [],
       event_log: [],
-    });
+    }).stubRpc("mark_missed_sessions", () => 0);
     const { GET } = await import("./route");
     const res = await GET(fakeRequest());
     const body = await res.json();
@@ -113,10 +113,28 @@ describe("GET /api/cron/nudge", () => {
       measurements: [],
       prs: [],
       event_log: [],
-    });
+    }).stubRpc("mark_missed_sessions", () => 0);
     const { GET } = await import("./route");
     const res = await GET(fakeRequest());
     const body = await res.json();
     expect(body.tierMismatches).toBe(0);
+  });
+});
+
+describe("GET /api/cron/nudge — missed-session sweep", () => {
+  it("reports how many sessions the sweep dropped", async () => {
+    db = new FakeSupabase({ profiles: [] }).stubRpc("mark_missed_sessions", () => 7);
+    const { GET } = await import("./route");
+    const res = await GET(fakeRequest());
+    expect(await res.json()).toMatchObject({ missedSessions: 7 });
+  });
+
+  it("does not fail the whole run when the sweep errors", async () => {
+    // No stub registered, so the fake returns an error — the nudge run must still report.
+    db = new FakeSupabase({ profiles: [] });
+    const { GET } = await import("./route");
+    const res = await GET(fakeRequest());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ missedSessions: 0 });
   });
 });
