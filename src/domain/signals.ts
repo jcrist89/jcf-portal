@@ -17,8 +17,11 @@
 
 import type { Engagement } from "@/domain/engagement";
 import type { SchedulePosition } from "@/domain/schedule";
+import type { CheckinState } from "@/domain/checkin";
 
 export type SignalKind =
+  | "checkin_overdue"
+  | "checkin_awaiting_review"
   | "message_unanswered"
   | "sessions_missed"
   | "quiet"
@@ -83,6 +86,10 @@ export interface ClientSnapshot {
   latestCoachReplyAt: string | null;
   scaledRecently: number;
   scalingReasons: string[];
+  checkin: CheckinState | null;
+  /** Set when a submitted check-in is waiting on the coach. */
+  checkinSubmittedAt: string | null;
+  checkinAsk: string | null;
 }
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, high: 1, opportunity: 2 };
@@ -112,6 +119,43 @@ export function signalsFor(
 ): CoachSignal[] {
   const out: CoachSignal[] = [];
   const { engagement, schedule } = snapshot;
+
+  // ── a check-in nobody has answered ────────────────────────────────────────
+  // Deliberately ahead of the overdue signal: a client who did their part and got
+  // nothing back is a worse failure than one who hasn't filled the form in yet.
+  if (snapshot.checkin?.status === "submitted" || snapshot.checkin?.status === "reviewed") {
+    const waiting = snapshot.checkin.hoursAwaitingResponse ?? 0;
+    out.push({
+      kind: "checkin_awaiting_review",
+      severity: snapshot.checkin.responseOverdue ? "critical" : "high",
+      fingerprint: `checkin:${snapshot.checkin.dueOn}`,
+      headline:
+        waiting >= 24
+          ? `Check-in waiting ${plural(Math.floor(waiting / 24), "day")} for a reply`
+          : "Check-in submitted",
+      evidence: snapshot.checkinAsk
+        ? `They asked: "${snapshot.checkinAsk}"`
+        : "They filled it in and haven't heard back.",
+      action: "Review and reply",
+      since: snapshot.checkinSubmittedAt?.slice(0, 10) ?? snapshot.checkin.dueOn,
+    });
+  }
+
+  // ── a check-in that never arrived ─────────────────────────────────────────
+  if (snapshot.checkin?.status === "overdue") {
+    const days = snapshot.checkin.daysOverdue;
+    out.push({
+      kind: "checkin_overdue",
+      severity: days >= 3 ? "critical" : "high",
+      // Bucketed by week, so a check-in drifting from 3 to 4 days late is not a new
+      // problem the coach has to dismiss all over again.
+      fingerprint: `overdue:${snapshot.checkin.dueOn}:${Math.floor(days / 7)}`,
+      headline: `Check-in ${plural(days, "day")} overdue`,
+      evidence: `Due ${snapshot.checkin.dueOn}. Nothing submitted.`,
+      action: "Chase it",
+      since: snapshot.checkin.dueOn,
+    });
+  }
 
   // ── an unanswered client message ──────────────────────────────────────────
   // Reading a message and replying to one are different states. The queue needs to know

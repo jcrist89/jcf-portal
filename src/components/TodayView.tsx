@@ -22,6 +22,7 @@ export function TodayView({
   localDate,
   streak,
   daysToCheckin,
+  checkinOverdue = false,
   unread,
   viewOnly = false,
 }: {
@@ -34,6 +35,7 @@ export function TodayView({
   localDate: string;
   streak: Consistency;
   daysToCheckin: number | null;
+  checkinOverdue?: boolean;
   unread: number;
   viewOnly?: boolean;
 }) {
@@ -115,12 +117,18 @@ export function TodayView({
             of last {streak.windowDays} days
           </div>
         </div>
-        <div>
-          <div className="font-display text-lg">
-            {daysToCheckin == null ? "—" : daysToCheckin === 0 ? "Today" : `${daysToCheckin}d`}
+        <Link href={viewOnly ? "#" : "/checkin"} className="block">
+          <div className={`font-display text-lg ${checkinOverdue ? "text-jcf-danger" : ""}`}>
+            {checkinOverdue
+              ? "Due"
+              : daysToCheckin == null
+              ? "—"
+              : daysToCheckin === 0
+              ? "Today"
+              : `${daysToCheckin}d`}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-jcf-gray">Check-in</div>
-        </div>
+        </Link>
         <div>
           <div className={`font-display text-lg ${unread ? "text-jcf-gold" : ""}`}>{unread}</div>
           <div className="text-[10px] uppercase tracking-wider text-jcf-gray">Unread</div>

@@ -9,6 +9,7 @@ import {
 } from "@/domain/signals";
 import type { Engagement } from "@/domain/engagement";
 import { trainingDateIn } from "@/lib/localDate";
+import { checkinState, currentCheckinDate as currentDueDate, type Checkin } from "@/domain/checkin";
 
 const MESSAGE_PREVIEW_CHARS = 70;
 
@@ -46,6 +47,7 @@ export async function loadCoachQueue(
     { data: notes },
     { data: habits },
     { data: suppressions },
+    { data: checkins },
   ] = await Promise.all([
     client
       .from("program_assignments")
@@ -75,6 +77,11 @@ export async function loadCoachQueue(
       .in("profile_id", ids)
       .order("local_date", { ascending: false }),
     client.from("coach_signal_actions").select("profile_id, signal_kind, fingerprint, action, snoozed_until"),
+    client
+      .from("checkins")
+      .select("*")
+      .in("profile_id", ids)
+      .order("due_local_date", { ascending: false }),
   ]);
 
   const byProfile = <T extends { profile_id: string }>(rows: T[] | null) => {
@@ -93,6 +100,7 @@ export async function loadCoachQueue(
   const notesByProfile = byProfile(notes as any[]);
   const habitsByProfile = byProfile(habits as any[]);
   const suppressionsByProfile = byProfile(suppressions as any[]);
+  const checkinsByProfile = byProfile(checkins as any[]);
 
   const entries = clients.map((profile) => {
     const assignment = assignmentByProfile.get(profile.id) ?? null;
@@ -129,10 +137,22 @@ export async function loadCoachQueue(
       (s: any) => s.status === "scaled" && s.completed_on && s.completed_on >= scalingWindow,
     );
 
+    // The check-in for the week currently in play. Absent rows are the interesting case
+    // — an overdue check-in has never been written.
+    const engagement = engagementByProfile.get(profile.id) ?? null;
+    const myCheckins = (checkinsByProfile.get(profile.id) ?? []) as unknown as Checkin[];
+    const state = checkinState(
+      engagement,
+      myCheckins.find((c) => c.due_local_date === currentDueDate(engagement, today)) ?? null,
+      today,
+      now.toISOString(),
+    );
+    const activeCheckin = myCheckins.find((c) => c.due_local_date === state.dueOn) ?? null;
+
     const snapshot: ClientSnapshot = {
       profileId: profile.id,
       name: profile.full_name ?? "Unnamed client",
-      engagement: engagementByProfile.get(profile.id) ?? null,
+      engagement,
       schedule: position,
       hasAssignment: assignment != null,
       lastActivityDate,
@@ -144,6 +164,9 @@ export async function loadCoachQueue(
       latestCoachReplyAt: latestCoach?.created_at ?? null,
       scaledRecently: scaled.length,
       scalingReasons: scaled.map((s: any) => s.scaling_reason).filter(Boolean),
+      checkin: state,
+      checkinSubmittedAt: activeCheckin?.submitted_at ?? null,
+      checkinAsk: activeCheckin?.ask ?? null,
     };
 
     return {

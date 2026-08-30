@@ -3,6 +3,7 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 import { schedulePosition, type SchedulePosition } from "@/domain/schedule";
 import { consistency, type Consistency, type HabitDay } from "@/domain/consistency";
 import { engagementPosition, nextCheckinDue, type Engagement } from "@/domain/engagement";
+import { checkinState, currentCheckinDate, type Checkin } from "@/domain/checkin";
 import { loadSchedule, loadSessionExercises, type SessionExerciseSummary } from "@/server/schedule";
 import { EMPTY_HABITS, type HabitState } from "@/components/HabitRow";
 import { CONSISTENCY_WINDOW_DAYS } from "@/domain/consistency";
@@ -14,6 +15,7 @@ export interface TodayData {
   habits: HabitState;
   streak: Consistency;
   daysToCheckin: number | null;
+  checkinOverdue: boolean;
   unread: number;
   blockLabel: string | null;
   weekday: string;
@@ -34,7 +36,7 @@ export async function loadToday(
   const windowStart = new Date(`${today}T00:00:00Z`);
   windowStart.setUTCDate(windowStart.getUTCDate() - (CONSISTENCY_WINDOW_DAYS - 1));
 
-  const [schedule, { data: habitRows }, { data: engagementRow }, { count: unread }] =
+  const [schedule, { data: habitRows }, { data: engagementRow }, { count: unread }, { data: checkinRows }] =
     await Promise.all([
       loadSchedule(client, profile.id),
       client
@@ -55,6 +57,12 @@ export async function loadToday(
         .eq("profile_id", profile.id)
         .eq("author", "coach")
         .eq("read", false),
+      client
+        .from("checkins")
+        .select("*")
+        .eq("profile_id", profile.id)
+        .order("due_local_date", { ascending: false })
+        .limit(2),
     ]);
 
   const days = (habitRows ?? []) as HabitDay[];
@@ -65,6 +73,16 @@ export async function loadToday(
   const exercises = position.session ? await loadSessionExercises(client, position.session.id) : [];
 
   const engagementAt = engagementPosition(engagement, asDate);
+  const checkins = (checkinRows ?? []) as Checkin[];
+  // Derived from the engagement, not read off the newest row — the week that matters
+  // most is the one with no row at all, because nobody submitted it.
+  const checkinDueOn = currentCheckinDate(engagement, today);
+  const checkin = checkinState(
+    engagement,
+    checkins.find((c) => c.due_local_date === checkinDueOn) ?? null,
+    today,
+    asDate.toISOString(),
+  );
   const checkinDue = nextCheckinDue(engagement, asDate);
 
   const todayRow = days.find((d) => d.local_date === today);
@@ -78,6 +96,7 @@ export async function loadToday(
     habits,
     streak: consistency(days, today, engagement?.starts_on ?? schedule.assignment?.starts_on),
     daysToCheckin: checkinDue ? differenceInCalendarDays(checkinDue, asDate) : null,
+    checkinOverdue: checkin.status === "overdue" || checkin.status === "due",
     unread: unread ?? 0,
     // The engagement is the coaching container, so it names the week when there is one.
     // An open-ended comp arrangement has no total, so it falls back to the training block.

@@ -50,6 +50,9 @@ function snapshot(over: Partial<ClientSnapshot> = {}): ClientSnapshot {
     latestCoachReplyAt: null,
     scaledRecently: 0,
     scalingReasons: [],
+    checkin: null,
+    checkinSubmittedAt: null,
+    checkinAsk: null,
     ...over,
   };
 }
@@ -317,5 +320,61 @@ describe("suppression", () => {
     ];
     const s = applySuppressions(signalsFor(withMissed, NOW, TODAY), suppressions, TODAY);
     expect(kinds(s)).toContain("sessions_missed");
+  });
+});
+
+describe("check-in signals", () => {
+  const state = (over: Partial<import("./checkin").CheckinState>) => ({
+    dueOn: "2026-08-23", status: "overdue" as const, daysOverdue: 7,
+    hoursAwaitingResponse: null, responseOverdue: false, ...over,
+  });
+
+  it("flags an overdue check-in and escalates past three days", () => {
+    const mild = signalsFor(snapshot({ checkin: state({ daysOverdue: 2 }) }), NOW, TODAY);
+    const bad = signalsFor(snapshot({ checkin: state({ daysOverdue: 7 }) }), NOW, TODAY);
+    expect(kinds(mild)).toContain("checkin_overdue");
+    expect(mild.find((s) => s.kind === "checkin_overdue")!.severity).toBe("high");
+    expect(bad.find((s) => s.kind === "checkin_overdue")!.severity).toBe("critical");
+  });
+
+  it("puts an unanswered check-in above an unsubmitted one", () => {
+    // A client who did their part and heard nothing is a worse failure than one who
+    // hasn't filled the form in yet.
+    const s = signalsFor(
+      snapshot({
+        checkin: state({ status: "submitted", daysOverdue: 0, hoursAwaitingResponse: 72, responseOverdue: true }),
+        checkinSubmittedAt: "2026-08-27T09:00:00.000Z",
+        checkinAsk: "can we change my deadlift day",
+      }),
+      NOW,
+      TODAY,
+    );
+    const sig = s.find((x) => x.kind === "checkin_awaiting_review")!;
+    expect(sig.severity).toBe("critical");
+    expect(sig.evidence).toContain("deadlift");
+    expect(sig.headline).toContain("3 days");
+  });
+
+  it("does not raise an overdue signal for a check-in that was submitted", () => {
+    const s = signalsFor(
+      snapshot({ checkin: state({ status: "submitted", daysOverdue: 0, hoursAwaitingResponse: 2 }) }),
+      NOW,
+      TODAY,
+    );
+    expect(kinds(s)).not.toContain("checkin_overdue");
+  });
+
+  it("goes quiet once the coach has responded", () => {
+    const s = signalsFor(snapshot({ checkin: state({ status: "responded", daysOverdue: 0 }) }), NOW, TODAY);
+    expect(kinds(s)).not.toContain("checkin_awaiting_review");
+    expect(kinds(s)).not.toContain("checkin_overdue");
+  });
+
+  it("keeps the overdue fingerprint stable within a week", () => {
+    const a = signalsFor(snapshot({ checkin: state({ daysOverdue: 3 }) }), NOW, TODAY);
+    const b = signalsFor(snapshot({ checkin: state({ daysOverdue: 5 }) }), NOW, TODAY);
+    expect(a.find((s) => s.kind === "checkin_overdue")!.fingerprint).toBe(
+      b.find((s) => s.kind === "checkin_overdue")!.fingerprint,
+    );
   });
 });
