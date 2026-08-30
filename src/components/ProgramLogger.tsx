@@ -115,6 +115,7 @@ async function fetchServerDraftFallback(
 
 export function ProgramLogger({
   programId,
+  assignmentSessionId = null,
   days,
   defaultIndex,
   recentLogs,
@@ -124,6 +125,8 @@ export function ProgramLogger({
   initialJokerRequests = [],
 }: {
   programId: string;
+  /** The scheduled session this log satisfies, so completing it closes that row. */
+  assignmentSessionId?: string | null;
   days: FlatDay[];
   defaultIndex: number;
   recentLogs: WorkoutLog[];
@@ -399,6 +402,9 @@ export function ProgramLogger({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           programId,
+          // Only when the logger is showing the session the schedule actually served —
+          // a client browsing to a different day must not close today's row.
+          assignmentSessionId: dayIndex === defaultIndex ? assignmentSessionId : null,
           dayLabel: `Week ${day.week} — ${day.label}`,
           exercisesCompleted,
           completed: true,

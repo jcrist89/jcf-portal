@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
 import { SectionHeader } from "@/components/SectionHeader";
-import type { ProgramPosition } from "@/lib/program";
+import type { SchedulePosition } from "@/domain/schedule";
+import type { SessionExerciseSummary } from "@/server/schedule";
 import type { WorkoutLog } from "@/lib/types";
 
 /**
@@ -18,6 +19,7 @@ export function ClientDashboardSummary({
   lastWeight,
   totalWorkouts,
   position,
+  upNextExercises,
   recentLogs,
   viewOnly = false,
 }: {
@@ -26,11 +28,12 @@ export function ClientDashboardSummary({
   streak: number;
   lastWeight: number | string;
   totalWorkouts: number;
-  position: ProgramPosition;
+  position: SchedulePosition;
+  upNextExercises: SessionExerciseSummary[];
   recentLogs: WorkoutLog[];
   viewOnly?: boolean;
 }) {
-  const upNext = position.day;
+  const upNext = position.session;
 
   return (
     <>
@@ -61,7 +64,13 @@ export function ClientDashboardSummary({
               ? `${Math.min(position.calendarWeek, position.totalWeeks)}/${position.totalWeeks}`
               : totalWorkouts
           }
-          sub={position.calendarWeek != null && position.totalWeeks > 0 ? "week of block" : "total workouts"}
+          sub={
+            position.adherence.pct != null
+              ? `week of block · ${position.adherence.pct}% done`
+              : position.totalWeeks > 0
+              ? "week of block"
+              : "total workouts"
+          }
         />
       </div>
 
@@ -77,15 +86,18 @@ export function ClientDashboardSummary({
         <div className="absolute top-0 right-0 w-24 h-24 bg-diagonal-fade" />
         {upNext ? (
           <>
-            <div className="text-jcf-gold text-xs uppercase tracking-widest mb-1">Week {upNext.week}</div>
+            <div className="text-jcf-gold text-xs uppercase tracking-widest mb-1">
+              Week {upNext.week_number}
+              {!position.dueToday && " · upcoming"}
+            </div>
             <div className="font-display text-xl uppercase mb-3">{upNext.label}</div>
             <ul className="text-sm text-jcf-gray space-y-1 mb-4">
-              {upNext.exercises.slice(0, 4).map((ex, i) => (
+              {upNextExercises.slice(0, 4).map((ex, i) => (
                 <li key={i}>
                   {ex.name} — {ex.sets}x{ex.reps}
                 </li>
               ))}
-              {upNext.exercises.length > 4 && <li>+ {upNext.exercises.length - 4} more</li>}
+              {upNextExercises.length > 4 && <li>+ {upNextExercises.length - 4} more</li>}
             </ul>
             {viewOnly ? (
               <span className="inline-block bg-white/10 text-jcf-gray uppercase text-sm px-4 py-2 rounded-sm cursor-not-allowed">

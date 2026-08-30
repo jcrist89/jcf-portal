@@ -1,7 +1,9 @@
 import { requireUser } from "@/lib/auth/require";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
-import { flattenProgram, programPosition } from "@/lib/program";
+import { flattenProgram } from "@/lib/program";
+import { schedulePosition } from "@/domain/schedule";
+import { loadSchedule } from "@/server/schedule";
 import type { JokerRequest, Program, ReadinessCheckin, WorkoutLog, TrainingMax } from "@/lib/types";
 import { ProgramLogger } from "@/components/ProgramLogger";
 import { kgToLb } from "@/lib/meetPrep/attemptPlanner";
@@ -14,7 +16,7 @@ export default async function ProgramPage() {
   // Toronto is 05:30 UTC, which used to file it under tomorrow.
   const today = trainingDateIn(profile.timezone);
 
-  const [{ data: program }, { data: workoutLogs }, { data: trainingMaxRows }, { data: todayReadinessRow }, { data: jokerRequestRows }] =
+  const [{ data: program }, { data: workoutLogs }, { data: trainingMaxRows }, { data: todayReadinessRow }, { data: jokerRequestRows }, schedule] =
     await Promise.all([
       profile.program_id
         ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
@@ -23,12 +25,22 @@ export default async function ProgramPage() {
       client.from("training_maxes").select("*").eq("profile_id", user.id),
       client.from("readiness_checkins").select("*").eq("profile_id", user.id).eq("date", today).maybeSingle(),
       client.from("joker_requests").select("*").eq("profile_id", user.id),
+      loadSchedule(client, user.id),
     ]);
 
   const p = program as Program | null;
   const flat = flattenProgram(p);
   const logs = (workoutLogs ?? []) as WorkoutLog[];
-  const position = programPosition(p, logs, new Date(), profile.timezone);
+
+  // The schedule decides which session; the program structure still supplies what is in
+  // it. Two different facts, so this is one source of truth for each rather than two for
+  // the same one.
+  const position = schedulePosition(schedule.assignment, schedule.sessions, today);
+  const scheduledIndex = position.session
+    ? flat.findIndex(
+        (d) => d.week === position.session!.week_number && d.day === position.session!.day_number,
+      )
+    : -1;
 
   const trainingMaxes: Record<string, number> = {};
   for (const row of (trainingMaxRows ?? []) as TrainingMax[]) {
@@ -116,7 +128,8 @@ export default async function ProgramPage() {
           <ProgramLogger
             programId={p.id}
             days={flat}
-            defaultIndex={position.index >= 0 ? position.index : Math.max(0, flat.length - 1)}
+            defaultIndex={scheduledIndex >= 0 ? scheduledIndex : Math.max(0, flat.length - 1)}
+            assignmentSessionId={position.session?.id ?? null}
             recentLogs={logs}
             trainingMaxes={trainingMaxes}
             profileId={user.id}

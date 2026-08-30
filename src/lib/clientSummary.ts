@@ -10,7 +10,7 @@ import type {
   TrainingMax,
   WorkoutLog,
 } from "@/lib/types";
-import { programPosition } from "@/lib/program";
+import { calendarWeekOf } from "@/domain/schedule";
 import { computeStreak } from "@/lib/dashboardStats";
 import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
 import { computeWeeklyCompliance } from "@/lib/meetPrep/compliance";
@@ -131,8 +131,9 @@ function computeMeetPrepAlert(
   const today = trainingDateIn(profile.timezone || DEFAULT_TIMEZONE);
   const todayReadiness = data.readiness.find((r) => r.date === today);
 
-  const currentWeek =
-    programPosition(program, logs).day?.week ?? 1;
+  // Calendar week, not a workout count: a meet block's compliance has to be measured
+  // against the week the athlete is actually in.
+  const currentWeek = calendarWeekOf(program?.starts_on ?? null, today);
   const compliance = computeWeeklyCompliance({
     program,
     logs,

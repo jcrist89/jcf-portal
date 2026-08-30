@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { rematerializeForProgram } from "@/server/schedule";
 
 /**
  * Edit a program's structure — either a coach editing a shared template, or a
@@ -37,5 +39,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       { status: 403 }
     );
   }
+  // Editing the structure changes what the remaining sessions should contain. Without
+  // rebuilding them the schedule would keep describing the old block — precisely the
+  // drift materializing exists to remove. Only unstarted sessions are touched, so a
+  // session that already happened is never rewritten.
+  if ("structure" in body) {
+    await rematerializeForProgram(supabaseAdmin(), params.id);
+  }
+
   return NextResponse.json({ program });
 }

@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireExistingClient, isResponse } from "@/lib/auth/authorize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
+import { assignProgram } from "@/server/schedule";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await supabaseForRequest();
@@ -61,6 +62,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const copyResult = await assignProgramCopy(admin, params.id, updates.program_id);
     if (isResponse(copyResult)) return copyResult;
     updates.program_id = copyResult;
+
+    // A program with no assignment has no schedule, so the client would see nothing to
+    // do. Created here rather than lazily on read, so the sessions exist before anyone
+    // looks for them.
+    const scheduled = await createAssignmentFor(admin, params.id, copyResult);
+    if (scheduled) return scheduled;
   }
 
   const { data: profile, error } = await admin
@@ -147,4 +154,37 @@ async function assignProgramCopy(
     );
   }
   return copy.id as string;
+}
+
+/** Builds the calendar-aware assignment (and its sessions) for a newly assigned program. */
+async function createAssignmentFor(
+  admin: SupabaseClient,
+  profileId: string,
+  programId: string,
+): Promise<NextResponse | null> {
+  const [{ data: prog }, { data: prof }, { data: engagement }] = await Promise.all([
+    admin.from("programs").select("starts_on, schedule_mode").eq("id", programId).maybeSingle(),
+    admin.from("profiles").select("timezone").eq("id", profileId).maybeSingle(),
+    admin
+      .from("client_engagements")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("status", "active")
+      .maybeSingle(),
+  ]);
+
+  const timezone = prof?.timezone || DEFAULT_TIMEZONE;
+  const result = await assignProgram(admin, {
+    profileId,
+    programId,
+    startsOn: prog?.starts_on ?? trainingDateIn(timezone),
+    timezone,
+    scheduleMode: prog?.schedule_mode === "date_anchored" ? "date_anchored" : "sequential",
+    engagementId: engagement?.id ?? null,
+  });
+
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
+  return null;
 }

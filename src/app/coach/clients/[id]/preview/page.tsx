@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
-import { programPosition } from "@/lib/program";
+import { schedulePosition } from "@/domain/schedule";
+import { loadSchedule, loadSessionExercises } from "@/server/schedule";
+import { trainingDateIn } from "@/lib/localDate";
 import { computeStreak, buildNudge, daysSinceLastLog, accountAgeInDays } from "@/lib/dashboardStats";
 import type { Profile, Program, WorkoutLog } from "@/lib/types";
 
@@ -30,12 +32,11 @@ export default async function ClientPreviewPage({ params }: { params: { id: stri
   const p = profile as Profile;
   const logs = (workoutLogs ?? []) as WorkoutLog[];
   const completedLogs = logs.filter((l) => l.completed);
-  const position = programPosition(
-    program as Program | null,
-    logs,
-    new Date(),
-    profile.timezone,
-  );
+  const schedule = await loadSchedule(client, p.id);
+  const position = schedulePosition(schedule.assignment, schedule.sessions, trainingDateIn(p.timezone));
+  const upNextExercises = position.session
+    ? await loadSessionExercises(client, position.session.id)
+    : [];
 
   const streak = computeStreak(completedLogs.map((l) => l.date));
   const lastWeight = p.current_weight ?? p.starting_weight ?? "—";
@@ -63,6 +64,7 @@ export default async function ClientPreviewPage({ params }: { params: { id: stri
           lastWeight={lastWeight}
           totalWorkouts={completedLogs.length}
           position={position}
+          upNextExercises={upNextExercises}
           recentLogs={logs}
           viewOnly
         />

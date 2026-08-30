@@ -8,6 +8,7 @@ import { notifyDeviationReported } from "@/lib/push";
 import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
 import { resolveLocalDate } from "@/lib/localDate";
 import { logEvent } from "@/lib/eventLog";
+import { completeScheduledSession } from "@/server/schedule";
 import type { WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -117,6 +118,19 @@ export async function POST(req: NextRequest) {
       })),
     );
     await notifyDeviationReported(profileId);
+  }
+
+  // Close the scheduled session this log satisfies. Guarded by profile id inside, so a
+  // caller cannot close somebody else's session by guessing an id.
+  if (typeof body.assignmentSessionId === "string" && body.completed !== false) {
+    await completeScheduledSession(supabaseAdmin(), {
+      sessionId: body.assignmentSessionId,
+      profileId,
+      workoutLogId: log.id,
+      completedOn: workoutDate,
+      scalingMode: typeof body.scalingMode === "string" ? body.scalingMode : null,
+      scalingReason: typeof body.scalingReason === "string" ? body.scalingReason : null,
+    });
   }
 
   const newAchievements = await checkAndAwardAchievements(client, profileId, { newPrs });
