@@ -114,6 +114,59 @@ describe("POST /api/stripe/webhook", () => {
     expect(db.tables.profiles[0].subscription_status).toBe("active");
   });
 
+  it("ignores a stale subscription.updated for a subscription the profile has moved off", async () => {
+    // Stripe doesn't guarantee ordering: a delayed delivery for the replaced
+    // subscription arrives after the profile is already on sub_2.
+    db.tables.profiles[0].stripe_subscription_id = "sub_2";
+    db.tables.profiles[0].tier = "paid_coaching";
+    db.tables.profiles[0].subscription_status = "active";
+    nextEvent = {
+      id: "evt_stale_update",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_1",
+          status: "canceled",
+          metadata: { profile_id: "client-1" },
+          items: { data: [{ price: { id: "price_prog" } }] },
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    // None of the stale subscription's state may leak onto the live one.
+    expect(db.tables.profiles[0].stripe_subscription_id).toBe("sub_2");
+    expect(db.tables.profiles[0].subscription_status).toBe("active");
+    expect(db.tables.profiles[0].tier).toBe("paid_coaching");
+    expect((db.tables.event_log ?? []).map((e) => e.level)).toEqual(["warning"]);
+  });
+
+  it("accepts subscription.updated for a profile whose checkout has not landed yet", async () => {
+    // No subscription recorded — this event is the first thing to describe it, so
+    // the stale-event guard must not treat a null id as a mismatch.
+    db.tables.profiles[0].stripe_subscription_id = null;
+    nextEvent = {
+      id: "evt_early_update",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_1",
+          status: "active",
+          metadata: { profile_id: "client-1" },
+          items: { data: [{ price: { id: "price_coach" } }] },
+        },
+      },
+    };
+    const { POST } = await import("./route");
+    await POST(fakeRequest());
+
+    expect(db.tables.profiles[0].stripe_subscription_id).toBe("sub_1");
+    expect(db.tables.profiles[0].tier).toBe("paid_coaching");
+    expect(db.tables.profiles[0].subscription_status).toBe("active");
+    expect(db.tables.event_log ?? []).toHaveLength(0);
+  });
+
   it("cancels back to free tier on customer.subscription.deleted", async () => {
     db.tables.profiles[0].stripe_subscription_id = "sub_1";
     db.tables.profiles[0].tier = "paid_coaching";
