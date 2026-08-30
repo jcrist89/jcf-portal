@@ -2,19 +2,17 @@ import { requireUser } from "@/lib/auth/require";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
-import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
-import { schedulePosition } from "@/domain/schedule";
-import { loadSchedule, loadSessionExercises } from "@/server/schedule";
+import { TodayView } from "@/components/TodayView";
+import { loadToday } from "@/server/today";
 import { trainingDateIn } from "@/lib/localDate";
-import { computeStreak, buildNudge, daysSinceLastLog, accountAgeInDays } from "@/lib/dashboardStats";
-import type { Profile, Program, WorkoutLog } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 /**
- * Coach-only, read-only rendering of what a client's own dashboard looks like.
- * Uses the coach's real session throughout (is_coach() RLS already grants read
- * access to every client's data) — never a session swap, never a write path.
- * The one interactive element on the real dashboard (the "Go to Program" link)
- * is disabled here; everything else is plain display, same as the real page.
+ * What this client sees when they open the app.
+ *
+ * Renders the same component the client's own screen does, so a coach checking "does his
+ * Today screen make sense" is looking at the real thing rather than an approximation
+ * that quietly falls behind it.
  */
 export default async function ClientPreviewPage({ params }: { params: { id: string } }) {
   const { client } = await requireUser("coach");
@@ -22,52 +20,28 @@ export default async function ClientPreviewPage({ params }: { params: { id: stri
   const { data: profile } = await client.from("profiles").select("*").eq("id", params.id).maybeSingle();
   if (!profile || profile.role !== "client") notFound();
 
-  const [{ data: program }, { data: workoutLogs }] = await Promise.all([
-    profile.program_id
-      ? client.from("programs").select("*").eq("id", profile.program_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    client.from("workout_logs").select("*").eq("profile_id", params.id).order("date", { ascending: false }),
-  ]);
-
   const p = profile as Profile;
-  const logs = (workoutLogs ?? []) as WorkoutLog[];
-  const completedLogs = logs.filter((l) => l.completed);
-  const schedule = await loadSchedule(client, p.id);
-  const position = schedulePosition(schedule.assignment, schedule.sessions, trainingDateIn(p.timezone));
-  const upNextExercises = position.session
-    ? await loadSessionExercises(client, position.session.id)
-    : [];
-
-  const streak = computeStreak(completedLogs.map((l) => l.date));
-  const lastWeight = p.current_weight ?? p.starting_weight ?? "—";
-  const daysSinceLog = daysSinceLastLog(completedLogs[0]?.date ?? null);
-  const accountAgeDays = accountAgeInDays(p.created_at);
-  const nudge = buildNudge(daysSinceLog, accountAgeDays, streak);
+  const today = trainingDateIn(p.timezone);
+  const data = await loadToday(client, p, today);
 
   return (
-    <div className="pb-24">
+    <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-2xl mx-auto">
+      <main className="px-4 pt-6 max-w-2xl mx-auto pb-24 sm:pb-16">
         <Link
           href={`/coach/clients/${params.id}`}
-          className="text-jcf-gray text-xs uppercase tracking-widest hover:text-jcf-gold"
+          className="text-jcf-gold text-xs uppercase tracking-widest hover:underline"
         >
-          ← Back to {p.full_name ?? p.email}
+          ← Back to {p.full_name ?? "client"}
         </Link>
-        <div className="bg-jcf-gold/10 border border-jcf-gold rounded-sm p-3 my-4 text-sm text-jcf-gold">
-          Viewing as {p.full_name ?? p.email} — read-only preview. Nothing here can be edited or submitted.
+        <div className="mt-4">
+          <TodayView
+            firstName={p.full_name?.split(" ")[0] ?? "Client"}
+            localDate={today}
+            viewOnly
+            {...data}
+          />
         </div>
-        <ClientDashboardSummary
-          displayName={p.full_name ?? p.email ?? "Client"}
-          nudge={nudge}
-          streak={streak}
-          lastWeight={lastWeight}
-          totalWorkouts={completedLogs.length}
-          position={position}
-          upNextExercises={upNextExercises}
-          recentLogs={logs}
-          viewOnly
-        />
       </main>
     </div>
   );
