@@ -1,5 +1,6 @@
 export type Role = "coach" | "client";
 export type Goal = "strength_gain" | "fat_loss" | "hybrid" | "powerlifting";
+export type ScheduleMode = "sequential" | "date_anchored";
 export type Tier = "free" | "paid_programming" | "paid_coaching";
 export type SubscriptionStatus = "active" | "past_due" | "canceled" | "n/a";
 
@@ -19,6 +20,7 @@ export interface Profile {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   subscription_status: SubscriptionStatus;
+  timezone: string;
   is_active: boolean;
   onboarded: boolean;
   welcome_email_sent_at: string | null;
@@ -98,6 +100,8 @@ export interface Program {
   is_template: boolean;
   is_default_template: boolean;
   client_id: string | null;
+  starts_on: string | null;
+  schedule_mode: ScheduleMode;
   meet_date: string | null;
   attempt_plan: AttemptPlan | null;
   weaknesses: ProgramWeaknesses | null;
@@ -264,4 +268,5 @@ export interface AppUser {
   fullName: string | null;
   tier: Tier;
   onboarded: boolean;
+  timezone: string;
 }

@@ -21,6 +21,8 @@ const program: Program = {
   },
   is_template: false,
   is_default_template: false,
+  starts_on: null,
+  schedule_mode: "sequential" as const,
   client_id: "client-1",
   meet_date: null,
   attempt_plan: null,

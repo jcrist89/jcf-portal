@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseForRequest, type RequestContext } from "@/lib/supabase/server";
 import type { Tier } from "@/lib/types";
+import { DEFAULT_TIMEZONE } from "@/lib/localDate";
 
 export type RequestCtx = RequestContext;
 
@@ -83,4 +84,20 @@ export async function requireExistingClient(
     return NextResponse.json({ error: "Client not found." }, { status: 404 });
   }
   return null;
+}
+
+/**
+ * The timezone every date on this request should resolve against. A client acts on
+ * their own profile, so the row already loaded answers it; a coach acting on a client
+ * needs that client's zone, not their own — otherwise logging a session on a client's
+ * behalf files it against the coach's calendar day.
+ */
+export async function timezoneFor(ctx: RequestCtx, profileId: string): Promise<string> {
+  if (profileId === ctx.session.id) return ctx.profile?.timezone || DEFAULT_TIMEZONE;
+  const { data } = await ctx.client
+    .from("profiles")
+    .select("timezone")
+    .eq("id", profileId)
+    .maybeSingle();
+  return data?.timezone || DEFAULT_TIMEZONE;
 }

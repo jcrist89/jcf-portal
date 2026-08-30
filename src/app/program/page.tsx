@@ -1,15 +1,18 @@
 import { requireUser } from "@/lib/auth/require";
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
-import { flattenProgram } from "@/lib/program";
+import { flattenProgram, programPosition } from "@/lib/program";
 import type { JokerRequest, Program, ReadinessCheckin, WorkoutLog, TrainingMax } from "@/lib/types";
 import { ProgramLogger } from "@/components/ProgramLogger";
 import { kgToLb } from "@/lib/meetPrep/attemptPlanner";
+import { trainingDateIn } from "@/lib/localDate";
 
 export default async function ProgramPage() {
   const { client, session: user, profile } = await requireUser("client");
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The client's training day, not the server's UTC day — a 01:30 session in
+  // Toronto is 05:30 UTC, which used to file it under tomorrow.
+  const today = trainingDateIn(profile.timezone);
 
   const [{ data: program }, { data: workoutLogs }, { data: trainingMaxRows }, { data: todayReadinessRow }, { data: jokerRequestRows }] =
     await Promise.all([
@@ -25,7 +28,7 @@ export default async function ProgramPage() {
   const p = program as Program | null;
   const flat = flattenProgram(p);
   const logs = (workoutLogs ?? []) as WorkoutLog[];
-  const completedCount = logs.filter((l) => l.completed).length;
+  const position = programPosition(p, logs, new Date(), profile.timezone);
 
   const trainingMaxes: Record<string, number> = {};
   for (const row of (trainingMaxRows ?? []) as TrainingMax[]) {
@@ -113,7 +116,7 @@ export default async function ProgramPage() {
           <ProgramLogger
             programId={p.id}
             days={flat}
-            defaultIndex={completedCount % (flat.length || 1)}
+            defaultIndex={position.index >= 0 ? position.index : Math.max(0, flat.length - 1)}
             recentLogs={logs}
             trainingMaxes={trainingMaxes}
             profileId={user.id}

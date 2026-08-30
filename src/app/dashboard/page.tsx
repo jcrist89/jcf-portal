@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth/require";
 import { ClientNav } from "@/components/ClientNav";
 import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
-import { nextDayUp } from "@/lib/program";
+import { programPosition } from "@/lib/program";
 import { computeStreak, buildNudge, daysSinceLastLog, accountAgeInDays } from "@/lib/dashboardStats";
 import type { Program, WorkoutLog } from "@/lib/types";
 
@@ -17,7 +17,12 @@ export default async function DashboardPage() {
 
   const logs = (workoutLogs ?? []) as WorkoutLog[];
   const completedLogs = logs.filter((l) => l.completed);
-  const upNext = nextDayUp(program as Program | null, completedLogs.length);
+  const position = programPosition(
+    program as Program | null,
+    logs,
+    new Date(),
+    p.timezone,
+  );
 
   const streak = computeStreak(completedLogs.map((l) => l.date));
   const lastWeight = p.current_weight ?? p.starting_weight ?? "—";
@@ -37,7 +42,7 @@ export default async function DashboardPage() {
           streak={streak}
           lastWeight={lastWeight}
           totalWorkouts={completedLogs.length}
-          upNext={upNext}
+          position={position}
           recentLogs={logs}
         />
       </main>

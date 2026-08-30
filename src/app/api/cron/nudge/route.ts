@@ -104,12 +104,20 @@ async function checkTierMismatches(admin: ReturnType<typeof supabaseAdmin>): Pro
     .select("id, tier, subscription_status, stripe_subscription_id, stripe_customer_id")
     .neq("tier", "free");
 
-  const mismatches = (suspects ?? []).filter(
-    (p: any) =>
-      p.stripe_customer_id != null && // only ever-paid accounts — comped tiers (no stripe_customer_id) are expected to look "mismatched" and aren't real ones
-      ((p.subscription_status === "canceled" || p.subscription_status === "past_due") ||
-        (p.subscription_status === "active" && !p.stripe_subscription_id)),
-  );
+  // The previous version required stripe_customer_id to be non-null before testing
+  // anything, on the theory that comped clients would otherwise look mismatched. That
+  // filter also swallowed the one condition that is never legitimate: a profile
+  // claiming subscription_status 'active' with no Stripe customer behind it at all.
+  // Every live paid-tier row in the database was exactly that shape, so the check was
+  // structurally incapable of firing. Comped clients are excluded by the status they
+  // actually carry ('n/a'), not by the absence of a customer id.
+  const mismatches = (suspects ?? []).filter((p: any) => {
+    if (p.subscription_status === "n/a") return false; // comped / manually arranged
+    if (p.subscription_status === "active" && (!p.stripe_customer_id || !p.stripe_subscription_id)) {
+      return true; // claims an active subscription that Stripe has no record of
+    }
+    return p.subscription_status === "canceled" || p.subscription_status === "past_due";
+  });
 
   for (const p of mismatches) {
     await logEvent(admin, {

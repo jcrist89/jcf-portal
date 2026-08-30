@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireExistingClient } from "@/lib/auth/authorize";
+import { requireExistingClient, isResponse } from "@/lib/auth/authorize";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await supabaseForRequest();
@@ -43,10 +45,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     "program_id",
     "is_active",
     "tier",
+    "timezone",
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
+  }
+
+  // Assigning a program means assigning a copy the coach can edit freely — never the
+  // shared template row itself. The coach UI used to send the template id straight
+  // through, which pointed the client at a row every other client is copied from, so
+  // "Edit This Program" for that client rewrote the template for everyone. Signup and
+  // onboarding always copied; this is the path that didn't.
+  if (typeof updates.program_id === "string") {
+    const copyResult = await assignProgramCopy(admin, params.id, updates.program_id);
+    if (isResponse(copyResult)) return copyResult;
+    updates.program_id = copyResult;
   }
 
   const { data: profile, error } = await admin
@@ -72,4 +86,65 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const { error } = await admin.from("profiles").update({ is_active: false }).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Resolves the program id a client should actually be pointed at.
+ *
+ * A template id becomes a fresh client-owned copy (is_template false, client_id set,
+ * starts_on anchored to today) so the coach can customise it without touching the
+ * shared row. An id that's already this client's own program passes through unchanged,
+ * which keeps a re-save from spawning duplicate copies. Anything else — another
+ * client's program — is rejected.
+ *
+ * Returns the id to store, or a ready-to-return error response.
+ */
+async function assignProgramCopy(
+  admin: SupabaseClient,
+  profileId: string,
+  requestedId: string,
+): Promise<string | NextResponse> {
+  const [{ data: source }, { data: target }] = await Promise.all([
+    admin.from("programs").select("*").eq("id", requestedId).maybeSingle(),
+    admin.from("profiles").select("timezone").eq("id", profileId).maybeSingle(),
+  ]);
+
+  if (!source) return NextResponse.json({ error: "Program not found." }, { status: 404 });
+
+  if (!source.is_template) {
+    if (source.client_id !== profileId) {
+      return NextResponse.json(
+        { error: "That program belongs to another client." },
+        { status: 403 },
+      );
+    }
+    return requestedId;
+  }
+
+  const { data: copy, error } = await admin
+    .from("programs")
+    .insert({
+      goal: source.goal,
+      name: source.name,
+      description: source.description,
+      structure: source.structure,
+      is_template: false,
+      is_default_template: false,
+      client_id: profileId,
+      meet_date: source.meet_date,
+      attempt_plan: source.attempt_plan,
+      weaknesses: source.weaknesses,
+      starts_on: trainingDateIn(target?.timezone || DEFAULT_TIMEZONE),
+      schedule_mode: source.meet_date ? "date_anchored" : "sequential",
+    })
+    .select("id")
+    .single();
+
+  if (error || !copy) {
+    return NextResponse.json(
+      { error: error?.message ?? "Could not create this client's program copy." },
+      { status: 500 },
+    );
+  }
+  return copy.id as string;
 }

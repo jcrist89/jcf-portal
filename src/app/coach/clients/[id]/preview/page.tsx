@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 import { ClientDashboardSummary } from "@/components/ClientDashboardSummary";
-import { nextDayUp } from "@/lib/program";
+import { programPosition } from "@/lib/program";
 import { computeStreak, buildNudge, daysSinceLastLog, accountAgeInDays } from "@/lib/dashboardStats";
 import type { Profile, Program, WorkoutLog } from "@/lib/types";
 
@@ -30,7 +30,12 @@ export default async function ClientPreviewPage({ params }: { params: { id: stri
   const p = profile as Profile;
   const logs = (workoutLogs ?? []) as WorkoutLog[];
   const completedLogs = logs.filter((l) => l.completed);
-  const upNext = nextDayUp(program as Program | null, completedLogs.length);
+  const position = programPosition(
+    program as Program | null,
+    logs,
+    new Date(),
+    profile.timezone,
+  );
 
   const streak = computeStreak(completedLogs.map((l) => l.date));
   const lastWeight = p.current_weight ?? p.starting_weight ?? "—";
@@ -57,7 +62,7 @@ export default async function ClientPreviewPage({ params }: { params: { id: stri
           streak={streak}
           lastWeight={lastWeight}
           totalWorkouts={completedLogs.length}
-          upNext={upNext}
+          position={position}
           recentLogs={logs}
           viewOnly
         />

@@ -3,7 +3,8 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { checkJokerEligibility, jokerMaxPermittedWeight } from "@/lib/meetPrep/jokerEligibility";
 import { computeWeeklyCompliance } from "@/lib/meetPrep/compliance";
 import { notifyJokerRequested } from "@/lib/push";
-import { resolveProfileId } from "@/lib/auth/authorize";
+import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
+import { trainingDateIn } from "@/lib/localDate";
 import type { DeviationReport, Program, ReadinessCheckin, WorkoutLog } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   const profileId = resolveProfileId(ctx, body.profileId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = trainingDateIn(await timezoneFor(ctx, profileId));
 
   const { data: profile } = await client.from("profiles").select("program_id").eq("id", profileId).maybeSingle();
 

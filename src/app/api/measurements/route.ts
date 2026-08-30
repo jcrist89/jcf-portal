@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
-import { resolveProfileId } from "@/lib/auth/authorize";
+import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
+import { resolveLocalDate } from "@/lib/localDate";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
@@ -12,12 +13,13 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
 
   const profileId = resolveProfileId(ctx, body.profileId);
+  const measuredOn = resolveLocalDate(body.date, await timezoneFor(ctx, profileId));
 
   const { data: measurement, error } = await client
     .from("measurements")
     .insert({
       profile_id: profileId,
-      date: body.date ?? new Date().toISOString().slice(0, 10),
+      date: measuredOn,
       weight: body.weight ?? null,
       waist: body.waist ?? null,
       chest: body.chest ?? null,

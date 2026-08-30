@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { differenceInCalendarWeeks, parseISO, startOfWeek, isAfter, isEqual } from "date-fns";
+import { parseISO, startOfWeek, isAfter, isEqual } from "date-fns";
 import type {
   DeviationReport,
   JokerRequest,
@@ -10,7 +10,9 @@ import type {
   TrainingMax,
   WorkoutLog,
 } from "@/lib/types";
-import { flattenProgram } from "@/lib/program";
+import { programPosition } from "@/lib/program";
+import { computeStreak } from "@/lib/dashboardStats";
+import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
 import { computeWeeklyCompliance } from "@/lib/meetPrep/compliance";
 
 export interface MeetPrepAlert {
@@ -111,22 +113,26 @@ export function buildSummary(
     plannedPerWeek,
     streak,
     lastActivity,
-    meetPrepAlert: meetPrepData ? computeMeetPrepAlert(program, logs, meetPrepData) : null,
+    meetPrepAlert: meetPrepData ? computeMeetPrepAlert(profile, program, logs, meetPrepData) : null,
   };
 }
 
-function computeMeetPrepAlert(program: Program | null, logs: WorkoutLog[], data: MeetPrepData): MeetPrepAlert | null {
+function computeMeetPrepAlert(
+  profile: Profile,
+  program: Program | null,
+  logs: WorkoutLog[],
+  data: MeetPrepData,
+): MeetPrepAlert | null {
   const isMeetPrep = data.trainingMaxes.some((t) => t.lift === "meet_bench" || t.lift === "meet_deadlift");
   if (!isMeetPrep) return null;
 
   const pendingJokers = data.jokerRequests.filter((j) => j.status === "pending").length;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = trainingDateIn(profile.timezone || DEFAULT_TIMEZONE);
   const todayReadiness = data.readiness.find((r) => r.date === today);
 
-  const flat = flattenProgram(program);
-  const completedCount = logs.filter((l) => l.completed).length;
-  const currentWeek = flat.length ? flat[completedCount % flat.length].week : 1;
+  const currentWeek =
+    programPosition(program, logs).day?.week ?? 1;
   const compliance = computeWeeklyCompliance({
     program,
     logs,
@@ -141,21 +147,4 @@ function computeMeetPrepAlert(program: Program | null, logs: WorkoutLog[], data:
     complianceScore: compliance.score,
     complianceCategory: compliance.category,
   };
-}
-
-function computeStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const sorted = dates.map((d) => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
-  const weeks = Array.from(
-    new Set(sorted.map((d) => differenceInCalendarWeeks(d, sorted[0], { weekStartsOn: 1 })))
-  ).sort((a, b) => a - b);
-  let longest = 1;
-  let run = 1;
-  for (let i = 1; i < weeks.length; i++) {
-    if (weeks[i] === weeks[i - 1] + 1) {
-      run += 1;
-      longest = Math.max(longest, run);
-    } else run = 1;
-  }
-  return longest;
 }

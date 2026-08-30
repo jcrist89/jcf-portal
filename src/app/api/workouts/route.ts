@@ -5,7 +5,8 @@ import { detectNewPRs } from "@/lib/workoutHistory";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
 import { adjustTrainingMax } from "@/lib/trainingMax";
 import { notifyDeviationReported } from "@/lib/push";
-import { resolveProfileId } from "@/lib/auth/authorize";
+import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
+import { resolveLocalDate } from "@/lib/localDate";
 import { logEvent } from "@/lib/eventLog";
 import type { WorkoutLog } from "@/lib/types";
 
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
 
   const profileId = resolveProfileId(ctx, body.profileId);
   const exercisesCompleted = body.exercisesCompleted ?? [];
+  // The client's training day. A session finished at 01:30 in Toronto belongs to the
+  // day the client just trained, not to the UTC date that's already rolled over.
+  const workoutDate = resolveLocalDate(body.date, await timezoneFor(ctx, profileId));
 
   const { data: priorLogs } = await client
     .from("workout_logs")
@@ -30,7 +34,7 @@ export async function POST(req: NextRequest) {
     .insert({
       profile_id: profileId,
       program_id: body.programId ?? null,
-      date: body.date ?? new Date().toISOString().slice(0, 10),
+      date: workoutDate,
       day_label: body.dayLabel ?? null,
       exercises_completed: exercisesCompleted,
       completed: body.completed ?? true,

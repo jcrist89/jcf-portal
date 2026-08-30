@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { Goal } from "@/lib/types";
+import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
 
 const GOALS: Goal[] = ["strength_gain", "fat_loss", "hybrid", "powerlifting"];
 
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest) {
         structure: template.structure,
         is_template: false,
         client_id: session.id,
+        starts_on: trainingDateIn(ctx.profile.timezone || DEFAULT_TIMEZONE),
+        schedule_mode: template.meet_date ? "date_anchored" : "sequential",
       })
       .select()
       .single();

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { checkAndAwardAchievements } from "@/lib/awardAchievements";
-import { resolveProfileId } from "@/lib/auth/authorize";
+import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
+import { resolveLocalDate } from "@/lib/localDate";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const profileId = resolveProfileId(ctx, body.profileId);
+  const achievedOn = resolveLocalDate(body.date, await timezoneFor(ctx, profileId));
 
   const { data: pr, error } = await client
     .from("prs")
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
       weight: body.weight,
       unit: body.unit === "kg" ? "kg" : "lb",
       reps: body.reps ?? 1,
-      date: body.date ?? new Date().toISOString().slice(0, 10),
+      date: achievedOn,
       notes: body.notes ?? null,
     })
     .select()

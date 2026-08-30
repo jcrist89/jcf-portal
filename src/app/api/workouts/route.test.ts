@@ -8,7 +8,8 @@ vi.mock("@/lib/push", () => ({ notifyDeviationReported: vi.fn().mockResolvedValu
 function fakeRequest(body: unknown) {
   return { json: async () => body } as any;
 }
-const session = { id: "client-1", email: "a@b.com", role: "client" as const, fullName: "A", tier: "free", onboarded: true };
+const session = { id: "client-1", email: "a@b.com", role: "client" as const, fullName: "A", tier: "free", onboarded: true, timezone: "America/Toronto" };
+const profile = { id: "client-1", timezone: "America/Toronto" };
 
 describe("POST /api/workouts — training max hit/miss adjustment", () => {
   let db: FakeSupabase;
@@ -22,7 +23,7 @@ describe("POST /api/workouts — training max hit/miss adjustment", () => {
       achievements: [],
       measurements: [],
     });
-    mockSupabaseForRequest.mockResolvedValue({ client: db, session });
+    mockSupabaseForRequest.mockResolvedValue({ client: db, session, profile });
   });
 
   it("bumps the training max ~4% on a hit", async () => {

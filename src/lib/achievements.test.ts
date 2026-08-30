@@ -29,6 +29,7 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     subscription_status: "n/a",
     is_active: true,
     onboarded: true,
+  timezone: "America/Toronto",
     welcome_email_sent_at: null,
     last_nudge_threshold: null,
     created_at: "",

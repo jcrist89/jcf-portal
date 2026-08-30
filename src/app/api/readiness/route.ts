@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { scoreReadiness } from "@/lib/meetPrep/readiness";
 import { notifyLowReadiness } from "@/lib/push";
-import { resolveProfileId } from "@/lib/auth/authorize";
+import { resolveProfileId, timezoneFor } from "@/lib/auth/authorize";
+import { resolveLocalDate } from "@/lib/localDate";
 
 export async function POST(req: NextRequest) {
   const ctx = await supabaseForRequest();
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   const profileId = resolveProfileId(ctx, body.profileId);
+  const checkinDate = resolveLocalDate(body.date, await timezoneFor(ctx, profileId));
   const { score, tier } = scoreReadiness({
     sleep: body.sleep,
     fatigue: body.fatigue,
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
     .upsert(
       {
         profile_id: profileId,
-        date: body.date ?? new Date().toISOString().slice(0, 10),
+        date: checkinDate,
         sleep: body.sleep,
         fatigue: body.fatigue,
         soreness: body.soreness,

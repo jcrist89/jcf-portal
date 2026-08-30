@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppUser, Profile } from "@/lib/types";
+import { DEFAULT_TIMEZONE } from "@/lib/localDate";
 
 /**
  * Everything a page or route handler needs about the current request, resolved
@@ -74,6 +75,7 @@ export async function supabaseForRequest(): Promise<RequestContext | null> {
     fullName: profile.full_name,
     tier: profile.tier,
     onboarded: profile.onboarded,
+    timezone: profile.timezone || DEFAULT_TIMEZONE,
   };
 
   return { client, session, profile: profile as Profile };

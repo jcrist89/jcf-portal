@@ -78,6 +78,8 @@ export async function POST(req: NextRequest) {
         structure: template.structure,
         is_template: false,
         client_id: userId,
+        starts_on: new Date().toISOString().slice(0, 10),
+        schedule_mode: template.meet_date ? "date_anchored" : "sequential",
       })
       .select("id")
       .single();

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
 import { SectionHeader } from "@/components/SectionHeader";
-import type { FlatDay } from "@/lib/program";
+import type { ProgramPosition } from "@/lib/program";
 import type { WorkoutLog } from "@/lib/types";
 
 /**
@@ -17,7 +17,7 @@ export function ClientDashboardSummary({
   streak,
   lastWeight,
   totalWorkouts,
-  upNext,
+  position,
   recentLogs,
   viewOnly = false,
 }: {
@@ -26,10 +26,12 @@ export function ClientDashboardSummary({
   streak: number;
   lastWeight: number | string;
   totalWorkouts: number;
-  upNext: FlatDay | null;
+  position: ProgramPosition;
   recentLogs: WorkoutLog[];
   viewOnly?: boolean;
 }) {
+  const upNext = position.day;
+
   return (
     <>
       <div className="mb-6">
@@ -52,8 +54,23 @@ export function ClientDashboardSummary({
       <div className="grid grid-cols-3 gap-3 mb-8">
         <StatCard label="Streak" value={`${streak}w`} sub="consecutive weeks" />
         <StatCard label="Weight" value={lastWeight} sub="lb, last logged" />
-        <StatCard label="Logged" value={totalWorkouts} sub="total workouts" />
+        <StatCard
+          label="Block"
+          value={
+            position.calendarWeek != null && position.totalWeeks > 0
+              ? `${Math.min(position.calendarWeek, position.totalWeeks)}/${position.totalWeeks}`
+              : totalWorkouts
+          }
+          sub={position.calendarWeek != null && position.totalWeeks > 0 ? "week of block" : "total workouts"}
+        />
       </div>
+
+      {position.sessionsBehind > 0 && (
+        <div className="rounded-sm p-3 mb-6 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
+          You&apos;re {position.sessionsBehind} session{position.sessionsBehind === 1 ? "" : "s"} behind
+          where this block expected you. Nothing is lost — pick up right where you left off.
+        </div>
+      )}
 
       <SectionHeader title="Up Next" />
       <div className="bg-jcf-panel border border-white/10 rounded-sm p-5 mb-8 relative overflow-hidden">
@@ -84,7 +101,13 @@ export function ClientDashboardSummary({
             )}
           </>
         ) : (
-          <p className="text-jcf-gray text-sm">No program assigned yet — check back soon.</p>
+          <p className="text-jcf-gray text-sm">
+            {position.complete
+              ? "Block complete — nice work. Jon will have your next one ready shortly."
+              : position.totalWeeks > 0
+              ? "Nothing scheduled today. Rest up."
+              : "No program assigned yet — check back soon."}
+          </p>
         )}
       </div>
 
