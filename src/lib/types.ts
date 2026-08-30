@@ -33,6 +33,8 @@ export type PublicProfile = Profile;
 
 export interface Exercise {
   name: string;
+  /** Stable catalog identity. Renaming `name` must not change this. */
+  exerciseId?: string;
   sets: number | string;
   reps: string;
   rest: string;
@@ -123,6 +125,25 @@ export interface Measurement {
   created_at: string;
 }
 
+export type MovementPattern =
+  | "squat" | "hinge" | "push_horizontal" | "push_vertical"
+  | "pull_horizontal" | "pull_vertical" | "lunge" | "carry"
+  | "core" | "conditioning" | "accessory";
+
+/** A row in the exercise catalog — the stable identity behind every prescription and log. */
+export interface CatalogExercise {
+  id: string;
+  slug: string;
+  name: string;
+  movement_pattern: MovementPattern | null;
+  default_unit: "kg" | "lb";
+  demo_url: string | null;
+  coach_cue: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Lift = "squat" | "bench" | "deadlift" | "overhead_press" | string;
 
 export interface PR {
@@ -145,6 +166,8 @@ export interface SetLog {
 
 export interface ExerciseLog {
   name: string;
+  /** Stable catalog identity, copied from the prescription at log time. */
+  exerciseId?: string;
   sets: SetLog[];
   unit?: "kg" | "lb"; // unit the weights were logged in; defaults to "lb" when absent
   notes?: string;

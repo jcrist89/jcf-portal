@@ -50,7 +50,7 @@ export function ProgramPreview({
 
       <div className="flex flex-col gap-4">
         {day.exercises.map((ex) => {
-          const last = lastPerformanceFor(recentLogs, ex.name);
+          const last = lastPerformanceFor(recentLogs, ex);
           const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
           const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
           const unitLabel = ex.unit === "kg" ? "kg" : "lb";

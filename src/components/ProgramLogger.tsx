@@ -61,7 +61,7 @@ function buildInitialSets(
   const map: Record<string, SetInput[]> = {};
   for (const ex of day.exercises) {
     const n = typeof ex.sets === "number" ? ex.sets : parseInt(String(ex.sets), 10) || 1;
-    const last = lastPerformanceFor(history, ex.name);
+    const last = lastPerformanceFor(history, ex);
     const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
     const increment = ex.unit === "kg" ? 2.5 : 5;
     const prescribedWeight =
@@ -365,6 +365,9 @@ export function ProgramLogger({
     try {
       const exercisesCompleted = day.exercises.map((ex) => ({
         name: ex.name,
+        // Carried from the prescription so this log stays joinable to the exercise
+        // even if the coach renames it later.
+        exerciseId: ex.exerciseId,
         unit: ex.unit ?? "lb",
         // Defaulted rather than indexed blind: reconcileSets should always have
         // populated this, but a missing key here used to throw and kill the save
@@ -485,7 +488,7 @@ export function ProgramLogger({
 
       <div className="flex flex-col gap-4 mb-6">
         {day.exercises.map((ex) => {
-          const last = lastPerformanceFor(recentLogs, ex.name);
+          const last = lastPerformanceFor(recentLogs, ex);
           const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
           const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
           const unitLabel = ex.unit === "kg" ? "kg" : "lb";
