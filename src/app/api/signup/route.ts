@@ -3,9 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getStripe, TIER_PRICE_IDS } from "@/lib/stripe";
 import { sendWelcomeEmailOnce } from "@/lib/email/sendWelcome";
-import type { Goal, Tier } from "@/lib/types";
+import type { Tier } from "@/lib/types";
 
-const GOALS: Goal[] = ["strength_gain", "fat_loss", "hybrid", "powerlifting"];
 const TIERS: Tier[] = ["free", "paid_programming", "paid_coaching"];
 
 /**
@@ -14,7 +13,7 @@ const TIERS: Tier[] = ["free", "paid_programming", "paid_coaching"];
  * to also gate on an email click before they can start onboarding) and signs
  * them in. Free tier is provisioned right away; paid tiers stay on `tier=free`
  * until Stripe's webhook confirms payment — this also means an abandoned
- * Checkout never grants entitlement, and the profile row (with email/name/goal
+ * Checkout never grants entitlement, and the profile row (with email/name
  * already saved) is itself the record of an incomplete paid signup Jon can
  * follow up on.
  */
@@ -25,7 +24,6 @@ export async function POST(req: NextRequest) {
   const fullName = String(body.fullName ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
-  const goal = body.goal as Goal;
   const tier = body.tier as Tier;
 
   if (!fullName || !email || !password) {
@@ -33,9 +31,6 @@ export async function POST(req: NextRequest) {
   }
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
-  }
-  if (!GOALS.includes(goal)) {
-    return NextResponse.json({ error: "Invalid goal." }, { status: 400 });
   }
   if (!TIERS.includes(tier)) {
     return NextResponse.json({ error: "Invalid tier." }, { status: 400 });
@@ -59,40 +54,13 @@ export async function POST(req: NextRequest) {
   }
   const userId = created.user.id;
 
-  // Auto-assign the goal's default template as this client's own program instance.
-  const { data: template } = await admin
-    .from("programs")
-    .select("*")
-    .eq("goal", goal)
-    .eq("is_default_template", true)
-    .maybeSingle();
-
-  let programId: string | null = null;
-  if (template) {
-    const { data: instance } = await admin
-      .from("programs")
-      .insert({
-        goal,
-        name: template.name,
-        description: template.description,
-        structure: template.structure,
-        is_template: false,
-        client_id: userId,
-        starts_on: new Date().toISOString().slice(0, 10),
-        schedule_mode: template.meet_date ? "date_anchored" : "sequential",
-      })
-      .select("id")
-      .single();
-    programId = instance?.id ?? null;
-  }
-
   await admin
     .from("profiles")
-    .update({ full_name: fullName, goal, program_id: programId })
+    .update({ full_name: fullName })
     .eq("id", userId);
 
   // Establish the real browser session (sets the auth cookies on this response).
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
   if (signInErr) {
     return NextResponse.json({ error: "Account created — please sign in." }, { status: 200 });

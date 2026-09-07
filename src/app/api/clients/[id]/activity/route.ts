@@ -6,7 +6,8 @@ import { fetchClientTimelinePage } from "@/lib/coachTimeline";
 // backs this (workout_logs/measurements/etc. select policies already allow
 // is_coach() full read access), but the role check gives a clean 403 instead of
 // silently returning nothing to a client who guessed another client's id.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx || ctx.session.role !== "coach") {
     return NextResponse.json({ error: "Coach access required." }, { status: 403 });

@@ -5,6 +5,7 @@ import {
   checkinStatus,
   checkinState,
   compareCheckins,
+  checkinReminders,
   RESPONSE_SLA_HOURS,
   type Checkin,
 } from "./checkin";
@@ -188,5 +189,66 @@ describe("compareCheckins", () => {
     const field = compareCheckins(partial, previous).find((f) => f.key === "energy")!;
     expect(field.delta).toBeNull();
     expect(field.notable).toBe(false);
+  });
+});
+
+// Check-ins fall due on Sundays here; 2026-08-30 is a Sunday.
+describe("check-in reminders", () => {
+  it("reminds the day before one falls due", () => {
+    // Last week's is answered, so the only thing outstanding is tomorrow's.
+    const done = checkin({ due_local_date: "2026-08-23", submitted_at: "2026-08-23T12:00:00Z" });
+    expect(checkinReminders(engagement(), done, "2026-08-29")).toEqual([
+      { kind: "day_before", dueOn: "2026-08-30" },
+    ]);
+  });
+
+  it("reminds on the morning it is due", () => {
+    expect(checkinReminders(engagement(), null, "2026-08-30")).toEqual([
+      { kind: "morning_of", dueOn: "2026-08-30" },
+    ]);
+  });
+
+  it("stays quiet on the grace day rather than nagging a night-shift client", () => {
+    expect(checkinReminders(engagement(), null, "2026-08-31")).toEqual([]);
+  });
+
+  it("reminds once the grace day has passed", () => {
+    expect(checkinReminders(engagement(), null, "2026-09-01")).toEqual([
+      { kind: "overdue", dueOn: "2026-08-30" },
+    ]);
+  });
+
+  it("sends nothing for a check-in that has been submitted", () => {
+    const submitted = checkin({ submitted_at: "2026-08-30T12:00:00Z" });
+    expect(checkinReminders(engagement(), submitted, "2026-08-30")).toEqual([]);
+    expect(checkinReminders(engagement(), submitted, "2026-09-01")).toEqual([]);
+  });
+
+  it("does not hand out an extra reminder for answering early", () => {
+    // Submitted on the 30th; the next one isn't due until 6 Sept, so the 31st is quiet.
+    const submitted = checkin({ submitted_at: "2026-08-30T12:00:00Z" });
+    expect(checkinReminders(engagement(), submitted, "2026-08-31")).toEqual([]);
+  });
+
+  it("still flags tomorrow's check-in behind a stale overdue one", () => {
+    // Six days late on the 30th, and the 6th falls due tomorrow. The caller has already
+    // sent the overdue push days ago, so it must be able to fall through to day_before.
+    expect(checkinReminders(engagement(), null, "2026-09-05")).toEqual([
+      { kind: "overdue", dueOn: "2026-08-30" },
+      { kind: "day_before", dueOn: "2026-09-06" },
+    ]);
+  });
+
+  it("warns before the first check-in of a brand-new engagement", () => {
+    // Starts Wednesday 2 Sept, check-ins on Sunday -> first is 6 Sept.
+    const e = engagement({ starts_on: "2026-09-02", checkin_weekday: 0 });
+    expect(checkinReminders(e, null, "2026-09-05")).toEqual([
+      { kind: "day_before", dueOn: "2026-09-06" },
+    ]);
+    expect(checkinReminders(e, null, "2026-09-03")).toEqual([]);
+  });
+
+  it("sends nothing without an engagement", () => {
+    expect(checkinReminders(null, null, "2026-08-30")).toEqual([]);
   });
 });

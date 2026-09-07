@@ -18,10 +18,23 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     email: "a@b.com",
     full_name: "Test Client",
     birthday: null,
+    sex: null,
+    age: null,
     height_in: null,
     starting_weight: 200,
     current_weight: 200,
-    goal: "strength_gain",
+    preferred_units: "imperial",
+    experience_level: null,
+    training_days: null,
+    available_equipment: [],
+    dietary_preferences: [],
+    dietary_notes: null,
+    maintenance_calories: null,
+    target_calories: null,
+    protein_grams: null,
+    carb_grams: null,
+    fat_grams: null,
+    goal: "muscle_gain",
     program_id: null,
     tier: "free",
     stripe_customer_id: null,
@@ -151,7 +164,7 @@ describe("checkGoalMilestone", () => {
 
   it("awards the powerlifting total milestone at 1000+ combined (same-unit PRs)", () => {
     const ctx = baseCtx({
-      profile: profile({ goal: "powerlifting" }),
+      profile: profile({ goal: "strength" }),
       prs: [pr({ id: "s", lift: "squat", weight: 400 }), pr({ id: "b", lift: "bench", weight: 300 }), pr({ id: "d", lift: "deadlift", weight: 400 })],
     });
     expect(checkGoalMilestone(ctx)).toHaveLength(1);
@@ -160,7 +173,7 @@ describe("checkGoalMilestone", () => {
   it("correctly converts a kg-logged lift before summing into the combined total", () => {
     // 400 lb squat + 300 lb bench + 200 kg (~440.9 lb) deadlift = ~1140.9 lb, well over 1000
     const ctx = baseCtx({
-      profile: profile({ goal: "powerlifting" }),
+      profile: profile({ goal: "strength" }),
       prs: [
         pr({ id: "s", lift: "squat", weight: 400, unit: "lb" }),
         pr({ id: "b", lift: "bench", weight: 300, unit: "lb" }),
@@ -179,7 +192,7 @@ describe("checkGoalMilestone", () => {
     // three PRs whose raw numbers sum under 1000 but whose true (converted) lb
     // total is still under 1000, so no milestone should fire.
     const ctx = baseCtx({
-      profile: profile({ goal: "powerlifting" }),
+      profile: profile({ goal: "strength" }),
       prs: [
         pr({ id: "s", lift: "squat", weight: 300, unit: "lb" }),
         pr({ id: "b", lift: "bench", weight: 200, unit: "lb" }),
@@ -191,7 +204,7 @@ describe("checkGoalMilestone", () => {
 
   it("awards the strength-gain milestone at 1.5x bodyweight", () => {
     const ctx = baseCtx({
-      profile: profile({ goal: "strength_gain", current_weight: 200 }),
+      profile: profile({ goal: "muscle_gain", current_weight: 200 }),
       prs: [pr({ id: "s", lift: "squat", weight: 300 })],
     });
     expect(checkGoalMilestone(ctx)).toHaveLength(1);
@@ -199,7 +212,7 @@ describe("checkGoalMilestone", () => {
 
   it("awards the hybrid milestone at 15 completed workouts", () => {
     const logs = Array.from({ length: 15 }, (_, i) => workout(`2026-01-${String((i % 28) + 1).padStart(2, "0")}`));
-    const ctx = baseCtx({ profile: profile({ goal: "hybrid" }), workoutLogs: logs });
+    const ctx = baseCtx({ profile: profile({ goal: "recomposition" }), workoutLogs: logs });
     expect(checkGoalMilestone(ctx)).toHaveLength(1);
   });
 });

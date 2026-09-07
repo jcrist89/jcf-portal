@@ -5,7 +5,7 @@ import type { Program } from "@/lib/types";
 function build(weeks: number, daysPerWeek: number): Program {
   return {
     id: "p1",
-    goal: "powerlifting",
+    goal: "strength",
     name: "Block",
     description: null,
     structure: {

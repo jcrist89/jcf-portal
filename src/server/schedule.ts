@@ -99,6 +99,25 @@ export async function assignProgram(
     .eq("status", "active")
     .maybeSingle();
 
+  // The partial unique index allows only one active assignment per client. Retire the
+  // current assignment before inserting its replacement, then restore it if the insert
+  // fails and no competing request has already created a new active assignment.
+  if (existing) {
+    const { error: supersedeError } = await admin
+      .from("program_assignments")
+      .update({ status: "superseded", updated_at: new Date().toISOString() })
+      .eq("id", existing.id)
+      .eq("status", "active");
+
+    if (supersedeError) {
+      return {
+        assignment: null,
+        sessions: 0,
+        error: `Could not supersede the current assignment: ${supersedeError.message}`,
+      };
+    }
+  }
+
   const { data: assignment, error } = await admin
     .from("program_assignments")
     .insert({
@@ -115,14 +134,31 @@ export async function assignProgram(
     .single();
 
   if (error || !assignment) {
+    if (existing) {
+      const { data: activeReplacement } = await admin
+        .from("program_assignments")
+        .select("id")
+        .eq("profile_id", opts.profileId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!activeReplacement) {
+        await admin
+          .from("program_assignments")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", existing.id)
+          .eq("status", "superseded");
+      }
+    }
     return { assignment: null, sessions: 0, error: error?.message ?? "Could not create assignment." };
   }
 
   if (existing) {
     await admin
       .from("program_assignments")
-      .update({ status: "superseded", superseded_by: assignment.id, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
+      .update({ superseded_by: assignment.id, updated_at: new Date().toISOString() })
+      .eq("id", existing.id)
+      .eq("status", "superseded");
   }
 
   const { data: built, error: rpcError } = await admin.rpc("materialize_assignment_sessions", {

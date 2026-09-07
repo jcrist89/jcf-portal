@@ -11,7 +11,8 @@ import { rematerializeForProgram } from "@/server/schedule";
  * duplicate that check here — if RLS rejects the row, the update just matches zero
  * rows, which we surface as a 403 rather than a silent no-op.
  */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { client } = ctx;

@@ -43,11 +43,19 @@ describe("detectNewPRs — mixed-unit history", () => {
     expect(result[0]).toMatchObject({ lift: "Meet Bench", weight: 210, unit: "lb" });
   });
 
-  it("treats the first-ever logging of an exercise as a PR regardless of unit", () => {
+  // A first-ever entry sets the baseline rather than scoring a PR — otherwise every
+  // new block mints one PR per movement and the feed stops meaning anything.
+  it("does not treat the first-ever logging of an exercise as a PR", () => {
     const justLogged: ExerciseLog[] = [{ name: "Overhead Press", sets: [{ weight: 60, reps: 3, rpe: 8 }], unit: "kg" }];
-    const result = detectNewPRs([], justLogged);
+    expect(detectNewPRs([], justLogged)).toHaveLength(0);
+  });
+
+  it("flags the second session on a movement when it beats the baseline the first one set", () => {
+    const priorLogs = [log("2026-01-01", [{ name: "Overhead Press", sets: [{ weight: 60, reps: 3, rpe: 8 }], unit: "kg" }])];
+    const justLogged: ExerciseLog[] = [{ name: "Overhead Press", sets: [{ weight: 62.5, reps: 3, rpe: 8 }], unit: "kg" }];
+    const result = detectNewPRs(priorLogs, justLogged);
     expect(result).toHaveLength(1);
-    expect(result[0].unit).toBe("kg");
+    expect(result[0]).toMatchObject({ lift: "Overhead Press", weight: 62.5, unit: "kg" });
   });
 });
 

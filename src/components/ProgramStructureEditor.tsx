@@ -187,6 +187,19 @@ export function ProgramStructureEditor({
                         >
                           ✕
                         </button>
+                        <input
+                          value={ex.substitutions?.map((substitution) => substitution.name).join(", ") ?? ""}
+                          onChange={(e) =>
+                            updateStructure((s) => {
+                              const names = e.target.value.split(",").map((name) => name.trim()).filter(Boolean);
+                              s.weeks[wi].days[di].exercises[ei].substitutions = names.map((name) => ({ name }));
+                              return s;
+                            })
+                          }
+                          className="col-span-5 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-xs"
+                          placeholder="Client substitutions, comma separated"
+                          aria-label={`Substitutions for ${ex.name}`}
+                        />
                       </div>
                     ))}
                   </div>

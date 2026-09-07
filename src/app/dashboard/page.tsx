@@ -21,10 +21,16 @@ export default async function TodayPage() {
   return (
     <div className="pb-24">
       <ClientNav />
-      <main className="px-4 pt-6 max-w-2xl mx-auto">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-2xl mx-auto">
         <TodayView
           firstName={profile.full_name?.split(" ")[0] ?? "Today"}
           localDate={today}
+          nutritionTargets={{
+            calories: profile.target_calories,
+            protein: profile.protein_grams,
+            carbs: profile.carb_grams,
+            fat: profile.fat_grams,
+          }}
           {...data}
         />
       </main>

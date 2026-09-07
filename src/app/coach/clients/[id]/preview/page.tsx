@@ -14,7 +14,8 @@ import type { Profile } from "@/lib/types";
  * Today screen make sense" is looking at the real thing rather than an approximation
  * that quietly falls behind it.
  */
-export default async function ClientPreviewPage({ params }: { params: { id: string } }) {
+export default async function ClientPreviewPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { client } = await requireUser("coach");
 
   const { data: profile } = await client.from("profiles").select("*").eq("id", params.id).maybeSingle();

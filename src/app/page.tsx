@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 const PILLARS = [
   {
     title: "Real Programming",
-    desc: "Strength gain, fat loss, hybrid, or powerlifting — built on proven structure, not generic templates.",
+    desc: "Fat loss, recomposition, muscle gain, or strength — built on proven structure and adjusted to your schedule.",
   },
   {
     title: "Track Everything",

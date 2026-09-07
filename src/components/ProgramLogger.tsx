@@ -13,6 +13,8 @@ import { useDraftSync } from "@/lib/hooks/useDraftSync";
 import { reconcileSets, type SetInput } from "@/lib/workoutDraft";
 import { RoughShiftSheet } from "@/components/RoughShiftSheet";
 import { planRoughShift, type RoughShiftReason, type ScalingPlan } from "@/domain/scaling";
+import { RestTimer } from "@/components/RestTimer";
+import { parseRestSeconds, progressionRecommendation, warmupSets } from "@/lib/workoutGuidance";
 
 const READINESS_FIELDS: { key: keyof ReadinessFormState; label: string }[] = [
   { key: "sleep", label: "Sleep Quality" },
@@ -53,6 +55,9 @@ interface DeviationDraft {
 interface DraftPayload {
   sets: Record<string, SetInput[]>;
   tmResults: Record<string, "hit" | "miss">;
+  exerciseNotes: Record<string, string>;
+  exerciseFeedback: Record<string, { difficulty?: "easy" | "right" | "hard"; painScore: string }>;
+  substitutions: Record<string, string>;
 }
 
 function buildInitialSets(
@@ -68,6 +73,7 @@ function buildInitialSets(
     const increment = ex.unit === "kg" ? 2.5 : 5;
     const prescribedWeight =
       tm != null && ex.percentOfTm != null ? workingWeight(tm, ex.percentOfTm, increment) : null;
+    const recommendation = prescribedWeight == null ? progressionRecommendation(history, ex) : null;
     const prescribedReps = parseInt(String(ex.reps), 10);
     map[ex.name] = Array.from({ length: n }, (_, i) => {
       const lastSet = last?.exercise.sets[i];
@@ -76,6 +82,8 @@ function buildInitialSets(
         weight:
           prescribedWeight != null
             ? String(prescribedWeight)
+            : recommendation?.weight != null
+            ? String(recommendation.weight)
             : lastSet?.weight != null
             ? String(lastSet.weight)
             : "",
@@ -94,8 +102,14 @@ function loadLocalOrDefault(
 ): DraftPayload {
   const defaults = day ? buildInitialSets(day, recentLogs, trainingMaxes) : {};
   const draft = readLocalDraft<DraftPayload>(localKey);
-  if (!draft) return { sets: defaults, tmResults: {} };
-  return { sets: reconcileSets(draft.sets, defaults), tmResults: draft.tmResults ?? {} };
+  if (!draft) return { sets: defaults, tmResults: {}, exerciseNotes: {}, exerciseFeedback: {}, substitutions: {} };
+  return {
+    sets: reconcileSets(draft.sets, defaults),
+    tmResults: draft.tmResults ?? {},
+    exerciseNotes: draft.exerciseNotes ?? {},
+    exerciseFeedback: draft.exerciseFeedback ?? {},
+    substitutions: draft.substitutions ?? {},
+  };
 }
 
 async function fetchServerDraftFallback(
@@ -174,6 +188,9 @@ export function ProgramLogger({
   const [initialDraft] = useState(() => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes));
   const [sets, setSets] = useState<Record<string, SetInput[]>>(initialDraft.sets);
   const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>(initialDraft.tmResults);
+  const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>(initialDraft.exerciseNotes);
+  const [exerciseFeedback, setExerciseFeedback] = useState<Record<string, { difficulty?: "easy" | "right" | "hard"; painScore: string }>>(initialDraft.exerciseFeedback);
+  const [substitutions, setSubstitutions] = useState<Record<string, string>>(initialDraft.substitutions);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [readinessError, setReadinessError] = useState<string | null>(null);
@@ -192,6 +209,9 @@ export function ProgramLogger({
       // the program's current exercises the same way a local one is.
       setSets(reconcileSets(payload.sets, day ? buildInitialSets(day, recentLogs, trainingMaxes) : {}));
       setTmResults(payload.tmResults ?? {});
+      setExerciseNotes(payload.exerciseNotes ?? {});
+      setExerciseFeedback(payload.exerciseFeedback ?? {});
+      setSubstitutions(payload.substitutions ?? {});
     });
     return () => {
       cancelled = true;
@@ -199,7 +219,10 @@ export function ProgramLogger({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayIndex]);
 
-  const draftData = useMemo(() => ({ sets, tmResults }), [sets, tmResults]);
+  const draftData = useMemo(
+    () => ({ sets, tmResults, exerciseNotes, exerciseFeedback, substitutions }),
+    [sets, tmResults, exerciseNotes, exerciseFeedback, substitutions],
+  );
   const { status: draftStatus, clear: clearDraft } = useDraftSync({
     localKey,
     formType: "workout",
@@ -213,6 +236,9 @@ export function ProgramLogger({
     const loaded = loadLocalOrDefault(newLocalKey, days[i], recentLogs, trainingMaxes);
     setSets(loaded.sets);
     setTmResults(loaded.tmResults);
+    setExerciseNotes(loaded.exerciseNotes);
+    setExerciseFeedback(loaded.exerciseFeedback);
+    setSubstitutions(loaded.substitutions);
   }
 
   function updateSet(exName: string, idx: number, field: keyof SetInput, value: string) {
@@ -222,6 +248,11 @@ export function ProgramLogger({
       next[exName][idx] = { ...next[exName][idx], [field]: value };
       return next;
     });
+  }
+
+  function selectedSubstitution(ex: FlatDay["exercises"][number]) {
+    const index = Number(substitutions[ex.name]);
+    return Number.isInteger(index) && index >= 0 ? ex.substitutions?.[index] : undefined;
   }
 
   function markResult(ex: FlatDay["exercises"][number], result: "hit" | "miss") {
@@ -426,12 +457,19 @@ export function ProgramLogger({
     setSaving(true);
     setSaveError(null);
     try {
-      const exercisesCompleted = day.exercises.filter((ex) => !isDropped(ex.name)).map((ex) => ({
-        name: ex.name,
+      const exercisesCompleted = day.exercises.filter((ex) => !isDropped(ex.name)).map((ex) => {
+        const substitute = selectedSubstitution(ex);
+        const feedback = exerciseFeedback[ex.name];
+        return {
+        name: substitute?.name ?? ex.name,
         // Carried from the prescription so this log stays joinable to the exercise
         // even if the coach renames it later.
-        exerciseId: ex.exerciseId,
-        unit: ex.unit ?? "lb",
+        exerciseId: substitute?.exerciseId ?? ex.exerciseId,
+        unit: substitute?.unit ?? ex.unit ?? "lb",
+        notes: exerciseNotes[ex.name] || undefined,
+        difficulty: feedback?.difficulty,
+        painScore: feedback?.painScore ? Number(feedback.painScore) : null,
+        substitutedFor: substitute ? { name: ex.name, exerciseId: ex.exerciseId } : undefined,
         // Defaulted rather than indexed blind: reconcileSets should always have
         // populated this, but a missing key here used to throw and kill the save
         // with no feedback at all. An empty set list is a recoverable outcome.
@@ -440,7 +478,8 @@ export function ProgramLogger({
           weight: s.weight ? Number(s.weight) : null,
           rpe: s.rpe ? Number(s.rpe) : null,
         })),
-      }));
+        };
+      });
 
       const trainingMaxAdjustments = day.exercises
         .filter((ex) => (ex.liftKey === "bench" || ex.liftKey === "deadlift") && tmResults[ex.name])
@@ -589,7 +628,9 @@ export function ProgramLogger({
 
       <div className="flex flex-col gap-4 mb-6">
         {day.exercises.filter((ex) => !isDropped(ex.name)).map((ex) => {
-          const last = lastPerformanceFor(recentLogs, ex);
+          const substitute = selectedSubstitution(ex);
+          const activeExercise = substitute ? { ...ex, ...substitute } : ex;
+          const last = lastPerformanceFor(recentLogs, activeExercise);
           const tm = ex.liftKey ? trainingMaxes[ex.liftKey] : undefined;
           const isTmDriven = ex.liftKey != null && ex.percentOfTm != null && tm != null;
           const unitLabel = ex.unit === "kg" ? "kg" : "lb";
@@ -606,6 +647,11 @@ export function ProgramLogger({
           const prescribedWeight =
             reducesHeavy && rawPrescribedWeight != null ? workingWeight(rawPrescribedWeight, 95, increment) : rawPrescribedWeight;
           const showPrescription = isTmDriven && !blocksHeavy;
+          const progression = !isTmDriven ? progressionRecommendation(recentLogs, activeExercise) : null;
+          const activeUnit = substitute?.unit ?? ex.unit ?? progression?.unit ?? "lb";
+          const restSeconds = parseRestSeconds(ex.rest);
+          const warmups = warmupSets(prescribedWeight ?? progression?.weight ?? null, activeUnit);
+          const feedback = exerciseFeedback[ex.name] ?? { painScore: "" };
 
           const phase = topSingle ? phaseForWeek(day.week) : null;
           const jokerWindowOpen = topSingle && !!phase?.startsWith("Intensification") && !blocksHeavy;
@@ -616,13 +662,14 @@ export function ProgramLogger({
           return (
             <details key={ex.name} open className="group bg-jcf-panel border border-white/10 rounded-sm p-4">
               <summary className="flex items-baseline justify-between mb-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                <h3 className="font-display uppercase text-sm tracking-wide">{ex.name}</h3>
+                <h3 className="font-display uppercase text-sm tracking-wide">{substitute?.name ?? ex.name}</h3>
                 <span className="text-xs text-jcf-gray flex items-center gap-2">
                   {ex.sets}x{ex.reps} · rest {ex.rest}
                   <span className="inline-block transition-transform group-open:rotate-180">▾</span>
                 </span>
               </summary>
               {ex.notes && <p className="text-xs text-jcf-gray mb-2">{ex.notes}</p>}
+              {substitute?.notes && <p className="text-xs text-jcf-gold mb-2">{substitute.notes}</p>}
               {(ex.targetRpe || ex.rpeCap != null) && (
                 <p className="text-[11px] text-jcf-gray mb-2">
                   {ex.targetRpe && <>Target RPE {ex.targetRpe}</>}
@@ -650,6 +697,25 @@ export function ProgramLogger({
                 </div>
               )}
 
+              {!isTmDriven && progression?.weight != null && (
+                <div className="flex items-baseline justify-between mb-3 pb-3 border-b border-white/10">
+                  <span className="text-xs text-jcf-gray">{progression.reason}</span>
+                  <span className="text-jcf-gold font-display text-xl">
+                    {progression.weight}
+                    <span className="text-xs text-jcf-gray font-sans ml-1">{activeUnit} / set</span>
+                  </span>
+                </div>
+              )}
+
+              {warmups.length > 0 && (
+                <div className="mb-3 pb-3 border-b border-white/10">
+                  <p className="text-[10px] uppercase tracking-widest text-jcf-gray mb-1">Warm-up ramp</p>
+                  <p className="text-xs text-jcf-gray">
+                    {warmups.map((set) => `${set.weight}${activeUnit} × ${set.reps}`).join(" · ")}
+                  </p>
+                </div>
+              )}
+
               <div className="text-xs mb-3">
                 {last ? (
                   <span className="text-jcf-gold">
@@ -659,6 +725,7 @@ export function ProgramLogger({
                   <span className="text-jcf-gray">No previous log for this exercise yet.</span>
                 )}
               </div>
+              <RestTimer seconds={restSeconds} />
               <div className="flex flex-col gap-1.5">
                 <div className="grid grid-cols-[1.25rem_1fr_1fr_1fr] gap-1.5 sm:gap-2 text-[10px] uppercase text-jcf-gray tracking-wider">
                   <span>Set</span>
@@ -695,6 +762,82 @@ export function ProgramLogger({
                     />
                   </div>
                 ))}
+              </div>
+
+              {ex.substitutions && ex.substitutions.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <label className="block text-[10px] uppercase tracking-widest text-jcf-gray mb-1" htmlFor={`substitute-${ex.name}`}>
+                    Exercise option
+                  </label>
+                  <select
+                    id={`substitute-${ex.name}`}
+                    value={substitutions[ex.name] ?? ""}
+                    onChange={(event) => setSubstitutions((prev) => ({ ...prev, [ex.name]: event.target.value }))}
+                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
+                  >
+                    <option value="">{ex.name} (prescribed)</option>
+                    {ex.substitutions.map((option, index) => (
+                      <option key={`${option.exerciseId ?? option.name}-${index}`} value={index}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="text-[10px] uppercase tracking-widest text-jcf-gray mb-2">How did this feel?</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["easy", "right", "hard"] as const).map((difficulty) => (
+                    <button
+                      key={difficulty}
+                      type="button"
+                      aria-pressed={feedback.difficulty === difficulty}
+                      onClick={() => setExerciseFeedback((prev) => ({
+                        ...prev,
+                        [ex.name]: { ...feedback, difficulty },
+                      }))}
+                      className={`py-2 rounded-sm text-xs uppercase tracking-wide border ${
+                        feedback.difficulty === difficulty
+                          ? "border-jcf-gold bg-jcf-gold/10 text-jcf-gold"
+                          : "border-white/15 text-jcf-gray hover:border-white/40"
+                      }`}
+                    >
+                      {difficulty === "right" ? "Right" : difficulty}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="text-xs text-jcf-gray" htmlFor={`pain-${ex.name}`}>Pain (0–5)</label>
+                  <input
+                    id={`pain-${ex.name}`}
+                    inputMode="numeric"
+                    min="0"
+                    max="5"
+                    placeholder="0"
+                    value={feedback.painScore}
+                    onChange={(event) => setExerciseFeedback((prev) => ({
+                      ...prev,
+                      [ex.name]: { ...feedback, painScore: event.target.value },
+                    }))}
+                    className="w-20 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                  />
+                  {Number(feedback.painScore) > 0 && (
+                    <span className="text-xs text-jcf-danger">Stop if pain is sharp or worsening; use a substitute or contact Jon.</span>
+                  )}
+                </div>
+                <label className="block text-[10px] uppercase tracking-widest text-jcf-gray mt-3 mb-1" htmlFor={`note-${ex.name}`}>
+                  Note for your coach
+                </label>
+                <textarea
+                  id={`note-${ex.name}`}
+                  rows={2}
+                  maxLength={500}
+                  value={exerciseNotes[ex.name] ?? ""}
+                  onChange={(event) => setExerciseNotes((prev) => ({ ...prev, [ex.name]: event.target.value }))}
+                  placeholder="Optional: form, equipment, or anything Jon should know"
+                  className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
+                />
               </div>
 
               {canMarkResult && (
@@ -905,7 +1048,14 @@ export function ProgramLogger({
                     <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-1.5">
                       {log.exercises_completed.map((ex, i) => (
                         <div key={i} className="text-xs flex justify-between gap-3">
-                          <span className="text-white">{ex.name}</span>
+                          <span className="text-white">
+                            {ex.name}
+                            {ex.substitutedFor && <span className="text-jcf-gray"> for {ex.substitutedFor.name}</span>}
+                            {(ex.difficulty || (ex.painScore ?? 0) > 0) && (
+                              <span className="text-jcf-gray"> · {ex.difficulty ?? ""}{ex.painScore ? ` · pain ${ex.painScore}/5` : ""}</span>
+                            )}
+                            {ex.notes && <span className="block text-jcf-gray mt-0.5">{ex.notes}</span>}
+                          </span>
                           <span className="text-jcf-gray text-right">{formatSets(ex) || "—"}</span>
                         </div>
                       ))}

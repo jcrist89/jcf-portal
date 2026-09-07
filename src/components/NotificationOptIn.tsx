@@ -16,6 +16,8 @@ export function NotificationOptIn({ role }: { role: "coach" | "client" }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Browser capability detection necessarily happens after the server render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window);
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
   }, []);

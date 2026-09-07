@@ -3,11 +3,12 @@ import { supabaseForRequest } from "@/lib/supabase/server";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { CheckoutStatusBanner } from "@/components/CheckoutStatusBanner";
 
-export default async function OnboardingPage({
-  searchParams,
-}: {
-  searchParams: { checkout?: string };
-}) {
+export default async function OnboardingPage(
+  props: {
+    searchParams: Promise<{ checkout?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // Deliberately not requireUser("client"): that redirects an un-onboarded
   // client to /onboarding, which is this page.
   const ctx = await supabaseForRequest();
@@ -26,7 +27,7 @@ export default async function OnboardingPage({
           <CheckoutStatusBanner status={checkoutStatus} planActive={!!planActive} tier={profile?.tier ?? null} />
         </div>
       )}
-      <OnboardingForm existingGoal={profile?.goal ?? null} />
+      <OnboardingForm existingGoal={profile?.goal ?? null} initialName={profile?.full_name ?? null} />
     </>
   );
 }

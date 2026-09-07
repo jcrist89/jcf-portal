@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseForRequest } from "@/lib/supabase/server";
 import { notifyJokerResolved } from "@/lib/push";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { client, session } = ctx;

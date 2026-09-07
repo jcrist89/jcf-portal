@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       hips: body.hips ?? null,
       arms: body.arms ?? null,
       thighs: body.thighs ?? null,
+      neck: body.neck ?? null,
       notes: body.notes ?? null,
     })
     .select()

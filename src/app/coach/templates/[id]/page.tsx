@@ -4,7 +4,8 @@ import { CoachNav } from "@/components/CoachNav";
 import { TemplateEditor } from "@/components/TemplateEditor";
 import type { Program } from "@/lib/types";
 
-export default async function TemplateEditPage({ params }: { params: { id: string } }) {
+export default async function TemplateEditPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { client } = await requireUser("coach");
 
   const { data: program } = await client.from("programs").select("*").eq("id", params.id).maybeSingle();

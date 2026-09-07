@@ -331,6 +331,7 @@ export type Database = {
           hips: number | null
           id: string
           notes: string | null
+          neck: number | null
           profile_id: string
           thighs: number | null
           waist: number | null
@@ -344,6 +345,7 @@ export type Database = {
           hips?: number | null
           id?: string
           notes?: string | null
+          neck?: number | null
           profile_id: string
           thighs?: number | null
           waist?: number | null
@@ -357,6 +359,7 @@ export type Database = {
           hips?: number | null
           id?: string
           notes?: string | null
+          neck?: number | null
           profile_id?: string
           thighs?: number | null
           waist?: number | null
@@ -374,70 +377,109 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age: number | null
+          available_equipment: string[]
           birthday: string | null
+          carb_grams: number | null
           created_at: string
           current_weight: number | null
+          dietary_notes: string | null
+          dietary_preferences: string[]
           email: string | null
+          experience_level: string | null
+          fat_grams: number | null
           full_name: string | null
           goal: string | null
           height_in: number | null
           id: string
           is_active: boolean
           last_nudge_threshold: number | null
+          maintenance_calories: number | null
           onboarded: boolean
+          preferred_units: string
+          protein_grams: number | null
           program_id: string | null
           role: string
+          sex: string | null
           starting_weight: number | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_status: string
           tier: string
+          target_calories: number | null
+          training_days: number | null
           updated_at: string
           username: string | null
           welcome_email_sent_at: string | null
         }
         Insert: {
+          age?: number | null
+          available_equipment?: string[]
           birthday?: string | null
+          carb_grams?: number | null
           created_at?: string
           current_weight?: number | null
+          dietary_notes?: string | null
+          dietary_preferences?: string[]
           email?: string | null
+          experience_level?: string | null
+          fat_grams?: number | null
           full_name?: string | null
           goal?: string | null
           height_in?: number | null
           id?: string
           is_active?: boolean
           last_nudge_threshold?: number | null
+          maintenance_calories?: number | null
           onboarded?: boolean
+          preferred_units?: string
+          protein_grams?: number | null
           program_id?: string | null
           role?: string
+          sex?: string | null
           starting_weight?: number | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string
           tier?: string
+          target_calories?: number | null
+          training_days?: number | null
           updated_at?: string
           username?: string | null
           welcome_email_sent_at?: string | null
         }
         Update: {
+          age?: number | null
+          available_equipment?: string[]
           birthday?: string | null
+          carb_grams?: number | null
           created_at?: string
           current_weight?: number | null
+          dietary_notes?: string | null
+          dietary_preferences?: string[]
           email?: string | null
+          experience_level?: string | null
+          fat_grams?: number | null
           full_name?: string | null
           goal?: string | null
           height_in?: number | null
           id?: string
           is_active?: boolean
           last_nudge_threshold?: number | null
+          maintenance_calories?: number | null
           onboarded?: boolean
+          preferred_units?: string
+          protein_grams?: number | null
           program_id?: string | null
           role?: string
+          sex?: string | null
           starting_weight?: number | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string
           tier?: string
+          target_calories?: number | null
+          training_days?: number | null
           updated_at?: string
           username?: string | null
           welcome_email_sent_at?: string | null

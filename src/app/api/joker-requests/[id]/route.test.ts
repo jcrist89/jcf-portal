@@ -26,7 +26,7 @@ describe("PATCH /api/joker-requests/[id]", () => {
   it("lets the owning client mark their approved joker set completed", async () => {
     mockSupabaseForRequest.mockResolvedValue({ client: db, session: session("client", "client-A") });
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ status: "completed", actualWeight: 305 }), { params: { id: "jr-1" } });
+    const res = await PATCH(fakeRequest({ status: "completed", actualWeight: 305 }), { params: Promise.resolve({ id: "jr-1" }) });
     expect(res.status).toBe(200);
     expect(db.tables.joker_requests[0].status).toBe("completed");
   });
@@ -34,7 +34,7 @@ describe("PATCH /api/joker-requests/[id]", () => {
   it("blocks a different client from resolving someone else's joker set", async () => {
     mockSupabaseForRequest.mockResolvedValue({ client: db, session: session("client", "client-B") });
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ status: "completed" }), { params: { id: "jr-1" } });
+    const res = await PATCH(fakeRequest({ status: "completed" }), { params: Promise.resolve({ id: "jr-1" }) });
     expect(res.status).toBe(403);
     expect(db.tables.joker_requests[0].status).toBe("approved"); // unchanged
   });
@@ -42,14 +42,14 @@ describe("PATCH /api/joker-requests/[id]", () => {
   it("blocks a client from approving their own joker set", async () => {
     mockSupabaseForRequest.mockResolvedValue({ client: db, session: session("client", "client-A") });
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ status: "approved" }), { params: { id: "jr-1" } });
+    const res = await PATCH(fakeRequest({ status: "approved" }), { params: Promise.resolve({ id: "jr-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("lets the coach approve any joker set", async () => {
     mockSupabaseForRequest.mockResolvedValue({ client: db, session: session("coach", "coach-1") });
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ status: "approved" }), { params: { id: "jr-1" } });
+    const res = await PATCH(fakeRequest({ status: "approved" }), { params: Promise.resolve({ id: "jr-1" }) });
     expect(res.status).toBe(200);
     expect(db.tables.joker_requests[0].status).toBe("approved");
     expect(db.tables.joker_requests[0].resolved_by).toBe("coach-1");

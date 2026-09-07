@@ -4,7 +4,7 @@ import type { Program, WorkoutLog, DeviationReport, ReadinessCheckin } from "../
 
 const program: Program = {
   id: "prog-1",
-  goal: "powerlifting",
+  goal: "strength",
   name: "Meet Prep",
   description: null,
   structure: {

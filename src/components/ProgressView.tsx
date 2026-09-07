@@ -9,7 +9,8 @@ import { AchievementToast } from "@/components/AchievementToast";
 import { readLocalDraft, writeLocalDraft } from "@/lib/localDraft";
 import { useDraftSync } from "@/lib/hooks/useDraftSync";
 import { toLb } from "@/lib/units";
-import type { Measurement, PR } from "@/lib/types";
+import { estimateBodyComposition } from "@/lib/bodyComposition";
+import type { Measurement, PR, Sex } from "@/lib/types";
 
 const LIFTS = ["squat", "bench", "deadlift", "overhead_press"];
 
@@ -17,12 +18,16 @@ export function ProgressView({
   measurements,
   prs,
   profileId,
+  sex,
+  heightIn,
 }: {
   measurements: Measurement[];
   prs: PR[];
   profileId: string;
+  sex: Sex | null;
+  heightIn: number | null;
 }) {
-  const [tab, setTab] = useState<"weight" | "measurements" | "prs">("weight");
+  const [tab, setTab] = useState<"weight" | "measurements" | "prs" | "body">("weight");
   const [toast, setToast] = useState<{ title: string; description: string }[] | null>(null);
 
   const weightData = measurements
@@ -41,7 +46,7 @@ export function ProgressView({
   return (
     <div>
       <div className="flex gap-2 mb-6">
-        {(["weight", "measurements", "prs"] as const).map((t) => (
+        {(["weight", "measurements", "body", "prs"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -49,7 +54,7 @@ export function ProgressView({
               tab === t ? "bg-jcf-gold text-jcf-black border-jcf-gold font-semibold" : "border-white/15 text-jcf-gray"
             }`}
           >
-            {t === "weight" ? "Weight" : t === "measurements" ? "Measurements" : "PRs"}
+            {t === "weight" ? "Weight" : t === "measurements" ? "Measurements" : t === "body" ? "Body Comp" : "PRs"}
           </button>
         ))}
       </div>
@@ -66,6 +71,10 @@ export function ProgressView({
           <ChartCard title="Waist Trend (in)" data={waistData} dataKey="waist" />
           <LogMeasurementForm onLogged={setToast} focus="all" profileId={profileId} />
         </>
+      )}
+
+      {tab === "body" && (
+        <BodyCompositionCard measurements={measurements} sex={sex} heightIn={heightIn} />
       )}
 
       {tab === "prs" && (
@@ -105,6 +114,53 @@ export function ProgressView({
   );
 }
 
+function BodyCompositionCard({
+  measurements,
+  sex,
+  heightIn,
+}: {
+  measurements: Measurement[];
+  sex: Sex | null;
+  heightIn: number | null;
+}) {
+  const latest = [...measurements].reverse().find((measurement) => measurement.waist != null && measurement.neck != null);
+  const estimate = latest && estimateBodyComposition({
+    sex,
+    heightIn,
+    weightLb: latest.weight,
+    waistIn: latest.waist,
+    neckIn: latest.neck,
+    hipsIn: latest.hips,
+  });
+  const needsHips = sex === "female";
+
+  return (
+    <section className="bg-jcf-panel border border-white/10 rounded-sm p-5">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-jcf-gold mb-2">Optional estimate</p>
+      <h2 className="font-display text-xl uppercase tracking-wide">Body composition</h2>
+      {estimate ? (
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <div className="rounded-sm border border-white/10 bg-jcf-black/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-jcf-gray">Estimated body fat</p>
+            <p className="font-display text-3xl text-jcf-gold mt-1">{estimate.bodyFatPercent}%</p>
+          </div>
+          <div className="rounded-sm border border-white/10 bg-jcf-black/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-jcf-gray">Estimated lean mass</p>
+            <p className="font-display text-3xl text-jcf-gold mt-1">{estimate.leanMassLb ?? "—"}<span className="text-base">{estimate.leanMassLb ? " lb" : ""}</span></p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-jcf-gray text-sm mt-4">
+          Log height in your profile and a check-in with weight, waist, neck{needsHips ? ", and hips" : ""} to see an estimate.
+        </p>
+      )}
+      <p className="text-jcf-gray text-xs leading-relaxed mt-5">
+        This uses the sex-specific U.S. Navy circumference formula. It is a trend estimate, not a medical or diagnostic measurement. Lean mass is calculated from the same estimate, so it carries the same uncertainty.
+      </p>
+    </section>
+  );
+}
+
 function label(lift: string) {
   return lift.split("_").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 }
@@ -134,6 +190,7 @@ interface MeasurementDraft {
   hips: string;
   arms: string;
   thighs: string;
+  neck: string;
 }
 
 const BLANK_MEASUREMENT_DRAFT: MeasurementDraft = {
@@ -143,6 +200,7 @@ const BLANK_MEASUREMENT_DRAFT: MeasurementDraft = {
   hips: "",
   arms: "",
   thighs: "",
+  neck: "",
 };
 
 function LogMeasurementForm({
@@ -189,6 +247,7 @@ function LogMeasurementForm({
           hips: form.hips ? Number(form.hips) : null,
           arms: form.arms ? Number(form.arms) : null,
           thighs: form.thighs ? Number(form.thighs) : null,
+          neck: form.neck ? Number(form.neck) : null,
         }),
       });
       const data = await res.json();
@@ -223,6 +282,7 @@ function LogMeasurementForm({
             <Input label="Hips (in)" type="number" value={form.hips} onChange={(e) => update("hips", e.target.value)} />
             <Input label="Arms (in)" type="number" value={form.arms} onChange={(e) => update("arms", e.target.value)} />
             <Input label="Thighs (in)" type="number" value={form.thighs} onChange={(e) => update("thighs", e.target.value)} />
+            <Input label="Neck (in)" type="number" value={form.neck} onChange={(e) => update("neck", e.target.value)} />
           </>
         )}
       </div>
