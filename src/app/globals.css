@@ -7,6 +7,26 @@ html, body {
   color: #f5f5f5;
 }
 
+a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #D9A125;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  background: #D9A125;
+  color: #0a0a0a;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
 ::selection {
   background-color: #D9A125;
   color: #0a0a0a;

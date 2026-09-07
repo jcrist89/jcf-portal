@@ -33,10 +33,13 @@ export function useDraftSync<T>({
   enabled?: boolean;
 }) {
   const [status, setStatus] = useState<DraftSyncStatus>("idle");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dataRef = useRef(data);
-  dataRef.current = data;
   const isFirstRun = useRef(true);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const syncToServer = useCallback(async () => {
     try {

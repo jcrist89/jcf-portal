@@ -1,5 +1,8 @@
 export type Role = "coach" | "client";
-export type Goal = "strength_gain" | "fat_loss" | "hybrid" | "powerlifting";
+export type Goal = "fat_loss" | "recomposition" | "muscle_gain" | "strength";
+export type Sex = "female" | "male";
+export type UnitSystem = "imperial" | "metric";
+export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 export type ScheduleMode = "sequential" | "date_anchored";
 export type Tier = "free" | "paid_programming" | "paid_coaching";
 export type SubscriptionStatus = "active" | "past_due" | "canceled" | "n/a";
@@ -11,9 +14,22 @@ export interface Profile {
   email: string | null;
   full_name: string | null;
   birthday: string | null;
+  sex: Sex | null;
+  age: number | null;
   height_in: number | null;
   starting_weight: number | null;
   current_weight: number | null;
+  preferred_units: UnitSystem;
+  experience_level: ExperienceLevel | null;
+  training_days: number | null;
+  available_equipment: string[];
+  dietary_preferences: string[];
+  dietary_notes: string | null;
+  maintenance_calories: number | null;
+  target_calories: number | null;
+  protein_grams: number | null;
+  carb_grams: number | null;
+  fat_grams: number | null;
   goal: Goal | null;
   program_id: string | null;
   tier: Tier;
@@ -44,6 +60,15 @@ export interface Exercise {
   targetRpe?: string;    // e.g. "7-7.5" — display only
   rpeCap?: number;       // e.g. 8 — the max RPE this set should be taken to
   unit?: "kg" | "lb";    // rounding/display unit for liftKey-driven exercises; defaults to "lb"
+  substitutions?: ExerciseSubstitution[];
+}
+
+/** Coach-authored alternatives for unavailable or uncomfortable movements. */
+export interface ExerciseSubstitution {
+  name: string;
+  exerciseId?: string;
+  unit?: "kg" | "lb";
+  notes?: string;
 }
 
 export interface TrainingMax {
@@ -121,6 +146,7 @@ export interface Measurement {
   hips: number | null;
   arms: number | null;
   thighs: number | null;
+  neck: number | null;
   notes: string | null;
   created_at: string;
 }
@@ -171,6 +197,10 @@ export interface ExerciseLog {
   sets: SetLog[];
   unit?: "kg" | "lb"; // unit the weights were logged in; defaults to "lb" when absent
   notes?: string;
+  difficulty?: "easy" | "right" | "hard";
+  painScore?: number | null;
+  /** The prescription that was replaced when this alternative was logged. */
+  substitutedFor?: { name: string; exerciseId?: string };
 }
 
 export interface WorkoutLog {
@@ -181,6 +211,68 @@ export interface WorkoutLog {
   day_label: string | null;
   exercises_completed: ExerciseLog[];
   completed: boolean;
+  created_at: string;
+}
+
+export type FoodSource = "manual" | "usda";
+
+/** Nutrition values describe the saved serving, not 100g, so serving adjustment is a simple multiplier. */
+export interface NutritionFood {
+  id: string;
+  profile_id: string;
+  source: FoodSource;
+  external_id: string | null;
+  name: string;
+  brand: string | null;
+  serving_description: string;
+  serving_quantity: number;
+  serving_unit: string;
+  serving_grams: number | null;
+  calories: number;
+  protein_grams: number;
+  carb_grams: number;
+  fat_grams: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FoodFavorite {
+  profile_id: string;
+  food_id: string;
+  created_at: string;
+}
+
+export interface SavedMeal {
+  id: string;
+  profile_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedMealItem {
+  id: string;
+  meal_id: string;
+  food_id: string;
+  servings: number;
+  created_at: string;
+}
+
+export interface NutritionEntry {
+  id: string;
+  profile_id: string;
+  local_date: string;
+  food_id: string | null;
+  meal_id: string | null;
+  food_name: string;
+  meal_label: string | null;
+  servings: number;
+  serving_label: string;
+  calories: number;
+  protein_grams: number;
+  carb_grams: number;
+  fat_grams: number;
   created_at: string;
 }
 

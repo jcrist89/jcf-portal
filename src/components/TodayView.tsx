@@ -24,6 +24,7 @@ export function TodayView({
   daysToCheckin,
   checkinOverdue = false,
   unread,
+  nutritionTargets,
   viewOnly = false,
 }: {
   firstName: string;
@@ -37,6 +38,7 @@ export function TodayView({
   daysToCheckin: number | null;
   checkinOverdue?: boolean;
   unread: number;
+  nutritionTargets?: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null };
   viewOnly?: boolean;
 }) {
   return (
@@ -106,6 +108,23 @@ export function TodayView({
           {position.sessionsBehind === 1 ? "" : "s"} behind where this block expected{" "}
           {viewOnly ? "them" : "you"}. Nothing is lost — pick up right where you left off.
         </div>
+      )}
+
+      {nutritionTargets?.calories != null && (
+        <section className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-jcf-gray">Today&apos;s starting targets</p>
+              <p className="font-display text-3xl text-jcf-gold">{nutritionTargets.calories}</p>
+            </div>
+            <span className="text-xs text-jcf-gray">Calories</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center border-t border-white/10 pt-3">
+            <div><div className="font-display text-lg">{nutritionTargets.protein ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Protein</div></div>
+            <div><div className="font-display text-lg">{nutritionTargets.carbs ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Carbs</div></div>
+            <div><div className="font-display text-lg">{nutritionTargets.fat ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Fat</div></div>
+          </div>
+        </section>
       )}
 
       <HabitRow initial={habits} localDate={localDate} readOnly={viewOnly} />

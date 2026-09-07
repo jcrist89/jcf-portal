@@ -106,13 +106,15 @@ export function detectNewPRs(
     if (!sessionBest) continue;
 
     const priorBest = bestWeightForExercise(priorLogs, ex);
-    // No prior best means this is the first time this exercise has ever been
-    // logged for this client — that counts as a PR too, not just beating a number.
+    // A PR is beating a number you have already put up. The first time an exercise is
+    // ever logged there is nothing to beat, so it establishes the baseline instead —
+    // that entry is still the client's best, `bestWeightForExercise` will find it, and
+    // the next heavier session on that movement is a genuine PR.
     //
-    // NOTE: this is why there are 79 PR rows against 23 workouts — a fresh block mints
-    // one per new exercise. Worth changing, but it alters what the client sees and what
-    // lands in `prs`, so it is left as-is here rather than smuggled into an identity fix.
-    if (!priorBest || isHeavier({ weight: sessionBest.weight, unit }, priorBest)) {
+    // Counting first-ever entries produced 79 PR rows from 23 workouts: a fresh block
+    // minted one per new movement, which made the PR feed meaningless in exactly the
+    // weeks a new client most needs it to mean something.
+    if (priorBest && isHeavier({ weight: sessionBest.weight, unit }, priorBest)) {
       out.push({
         lift: ex.name,
         exerciseId: ex.exerciseId,

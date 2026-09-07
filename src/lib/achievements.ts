@@ -181,7 +181,7 @@ export function checkGoalMilestone(ctx: AchievementContext): NewAchievement[] {
     }
   }
 
-  if (profile.goal === "powerlifting") {
+  if (profile.goal === "strength") {
     // Convert every PR to lb before comparing/summing — prs.unit can be kg
     // (competition lifts are commonly logged in kg) or lb per record, and raw
     // weight values across different units can't be added together directly.
@@ -195,7 +195,7 @@ export function checkGoalMilestone(ctx: AchievementContext): NewAchievement[] {
     }
   }
 
-  if (profile.goal === "strength_gain") {
+  if (profile.goal === "muscle_gain") {
     // profile.current_weight/starting_weight have no unit column — every UI entry
     // point for bodyweight is labeled "Weight (lb)", so they're always lb.
     const bw = profile.current_weight ?? profile.starting_weight ?? 0;
@@ -205,10 +205,10 @@ export function checkGoalMilestone(ctx: AchievementContext): NewAchievement[] {
     }
   }
 
-  if (profile.goal === "hybrid") {
+  if (profile.goal === "recomposition") {
     const count = workoutLogs.filter((w) => w.completed).length;
     if (count >= 15) {
-      return [goalMilestone("15 workouts in on your hybrid program. Steady progress.")];
+      return [goalMilestone("15 workouts in on your recomposition program. Steady progress.")];
     }
   }
 

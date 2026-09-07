@@ -16,7 +16,7 @@ export function Button({
   };
   return (
     <button
-      className={`px-4 py-2.5 rounded-sm uppercase tracking-wide text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${className}`}
+      className={`px-4 py-2.5 rounded-sm uppercase tracking-wide text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-jcf-gold focus-visible:ring-offset-2 focus-visible:ring-offset-jcf-black disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${className}`}
       {...props}
     />
   );

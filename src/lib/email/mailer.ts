@@ -1,8 +1,8 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
-let cached: nodemailer.Transporter | null = null;
+let cached: Transporter | null = null;
 
-function getTransport(): nodemailer.Transporter | null {
+function getTransport(): Transporter | null {
   if (cached) return cached;
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;

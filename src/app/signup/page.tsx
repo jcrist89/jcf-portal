@@ -11,13 +11,6 @@ const TIERS = [
   { id: "paid_coaching", label: "Coaching — $50/wk", desc: "Direct coaching + messaging with Jon." },
 ] as const;
 
-const GOALS = [
-  { id: "strength_gain", label: "Strength Gain", desc: "Lower reps, compound lifts, progressive overload." },
-  { id: "fat_loss", label: "Fat Loss", desc: "Moderate reps, higher density, conditioning finishers." },
-  { id: "hybrid", label: "Hybrid", desc: "Blend of strength work and conditioning." },
-  { id: "powerlifting", label: "Powerlifting", desc: "Squat / bench / deadlift periodization." },
-] as const;
-
 export default function SignupPage() {
   return (
     <Suspense fallback={null}>
@@ -35,7 +28,6 @@ function SignupForm() {
   const [tier, setTier] = useState<string | null>(
     tierFromQuery && TIERS.some((t) => t.id === tierFromQuery) ? tierFromQuery : null
   );
-  const [goal, setGoal] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,14 +35,14 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
 
   async function submit() {
-    if (!tier || !goal) return;
+    if (!tier) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, goal, fullName, email, password }),
+        body: JSON.stringify({ tier, fullName, email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -72,7 +64,7 @@ function SignupForm() {
     <div className="min-h-screen flex flex-col">
       <PublicHeader />
       <div className="flex-1 flex flex-col items-center px-6 py-10">
-        <p className="text-jcf-gray text-xs uppercase tracking-widest mb-8">Step {step + 1} of 3</p>
+        <p className="text-jcf-gray text-xs uppercase tracking-widest mb-8">Step {step + 1} of 2</p>
 
         <div className="w-full max-w-md bg-jcf-panel border border-white/10 rounded-sm p-6">
           {step === 0 && (
@@ -99,30 +91,6 @@ function SignupForm() {
           )}
 
           {step === 1 && (
-            <div className="flex flex-col gap-4">
-              <h2 className="font-display uppercase tracking-wide text-jcf-gold">Pick Your Goal</h2>
-              <div className="flex flex-col gap-2">
-                {GOALS.map((g) => (
-                  <button
-                    key={g.id}
-                    onClick={() => setGoal(g.id)}
-                    className={`text-left border rounded-sm p-3 transition-colors ${
-                      goal === g.id ? "border-jcf-gold bg-jcf-gold/10" : "border-white/15 hover:border-white/30"
-                    }`}
-                  >
-                    <div className="font-display uppercase text-sm tracking-wide">{g.label}</div>
-                    <div className="text-jcf-gray text-xs mt-0.5">{g.desc}</div>
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-3 mt-2">
-                <Button variant="secondary" onClick={() => setStep(0)}>Back</Button>
-                <Button onClick={() => setStep(2)} disabled={!goal} className="flex-1">Continue</Button>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -150,7 +118,7 @@ function SignupForm() {
               />
               {error && <p className="text-jcf-danger text-sm">{error}</p>}
               <div className="flex gap-3 mt-2">
-                <Button type="button" variant="secondary" onClick={() => setStep(1)}>Back</Button>
+                <Button type="button" variant="secondary" onClick={() => setStep(0)}>Back</Button>
                 <Button type="submit" disabled={loading} className="flex-1">
                   {loading ? "Setting up..." : tier === "free" ? "Finish Setup" : "Continue to Payment"}
                 </Button>

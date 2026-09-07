@@ -49,6 +49,8 @@ export default async function ProgramPage() {
 
   const daysToMeet =
     p && p.meet_date
+      // This is a request-time Server Component snapshot, not client render state.
+      // eslint-disable-next-line react-hooks/purity
       ? Math.ceil((new Date(p.meet_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : null;
 

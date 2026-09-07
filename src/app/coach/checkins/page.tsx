@@ -33,6 +33,8 @@ export default async function CheckinReviewPage() {
         .order("due_local_date", { ascending: false })
     : { data: [] as Checkin[] };
 
+  // This is a request-time Server Component snapshot, not client render state.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const items: ReviewItem[] = pending.map((c) => {
     const previous =

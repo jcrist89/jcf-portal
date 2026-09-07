@@ -4,7 +4,8 @@ import { CoachNav } from "@/components/CoachNav";
 import { ClientDetailView } from "@/components/ClientDetailView";
 import type { Achievement, CoachNote, JokerRequest, Measurement, PR, Profile, Program, TrainingMax, WorkoutLog } from "@/lib/types";
 
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { client } = await requireUser("coach");
 
   const { data: profile } = await client.from("profiles").select("*").eq("id", params.id).maybeSingle();

@@ -8,6 +8,7 @@ import { getBrowserClient } from "@/lib/supabase/browser";
 const links = [
   { href: "/dashboard", label: "Today" },
   { href: "/program", label: "Program" },
+  { href: "/nutrition", label: "Nutrition" },
   { href: "/checkin", label: "Check-In" },
   { href: "/progress", label: "Progress" },
   { href: "/achievements", label: "Badges" },

@@ -210,3 +210,59 @@ export function compareCheckins(current: Checkin, previous: Checkin | null): Tre
     };
   });
 }
+
+/**
+ * Check-in reminders.
+ *
+ * The check-in has been used three times in six weeks, and nothing has ever prompted
+ * anyone to fill one in. A form nobody is reminded about stays at three.
+ *
+ * Three moments, and no more than three — the point is to make the check-in arrive, not
+ * to nag someone into muting the app. Which one is owed is derived here so the cron
+ * stays a delivery mechanism with no opinions of its own.
+ */
+export type CheckinReminderKind = "day_before" | "morning_of" | "overdue";
+
+export interface CheckinReminder {
+  kind: CheckinReminderKind;
+  /** The check-in this is about — the dedupe key, so each one is sent at most once. */
+  dueOn: string;
+}
+
+/**
+ * Every reminder that applies today, most urgent first.
+ *
+ * A list rather than a single answer because two can be true at once: a client six days
+ * late on last week's check-in also has next week's falling due tomorrow. The caller
+ * sends the first one it hasn't already sent, so a suppressed `overdue` doesn't swallow
+ * the `day_before` behind it.
+ *
+ * `checkin` is the row for the currently-due date, or null — and null is the case that
+ * matters most, because an unsubmitted check-in has no row at all.
+ */
+export function checkinReminders(
+  engagement: Engagement | null,
+  checkin: Pick<Checkin, "submitted_at" | "reviewed_at" | "coach_responded_at"> | null,
+  today: string,
+): CheckinReminder[] {
+  const due = currentCheckinDate(engagement, today);
+  if (!due) return [];
+
+  const out: CheckinReminder[] = [];
+  const status = checkinStatus(checkin, due, today);
+  const answered = status === "submitted" || status === "reviewed" || status === "responded";
+
+  if (!answered) {
+    if (due === today) out.push({ kind: "morning_of", dueOn: due });
+    // Not the day after: OVERDUE_AFTER_DAYS is grace, and a client who trains nights
+    // has often just not opened the app yet.
+    else if (status === "overdue") out.push({ kind: "overdue", dueOn: due });
+  }
+
+  // The next check-in to fall due — this week's if it hasn't arrived yet, otherwise
+  // next week's. Answering early doesn't earn an extra reminder.
+  const next = due > today ? due : shiftDate(due, 7);
+  if (daysBetween(today, next) === 1) out.push({ kind: "day_before", dueOn: next });
+
+  return out;
+}

@@ -55,27 +55,27 @@ describe("PATCH/DELETE /api/clients/[id]", () => {
 
   it("updates an allow-listed field on a real client", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ tier: "paid_programming" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ tier: "paid_programming" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(200);
     expect(db.tables.profiles.find((p) => p.id === "client-1")!.tier).toBe("paid_programming");
   });
 
   it("rejects targeting an id that isn't a client profile (e.g. another coach account)", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: { id: "coach-2" } });
+    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: Promise.resolve({ id: "coach-2" }) });
     expect(res.status).toBe(404);
     expect(db.tables.profiles.find((p) => p.id === "coach-2")!.tier).toBeUndefined();
   });
 
   it("rejects targeting a nonexistent id", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: { id: "ghost" } });
+    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: Promise.resolve({ id: "ghost" }) });
     expect(res.status).toBe(404);
   });
 
   it("deactivates a real client on DELETE", async () => {
     const { DELETE } = await import("./route");
-    const res = await DELETE({} as any, { params: { id: "client-1" } });
+    const res = await DELETE({} as any, { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(200);
     expect(db.tables.profiles.find((p) => p.id === "client-1")!.is_active).toBe(false);
   });
@@ -86,7 +86,7 @@ describe("PATCH/DELETE /api/clients/[id]", () => {
       session: { id: "client-1", email: "a@b.com", role: "client", fullName: "A", tier: "free", onboarded: true },
     });
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(403);
   });
 });
@@ -99,7 +99,7 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
 
   it("never leaves a client pointing at a shared template", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(200);
 
     const assignedId = db.tables.profiles.find((p) => p.id === "client-1")!.program_id;
@@ -115,7 +115,7 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
 
   it("leaves the shared template untouched", async () => {
     const { PATCH } = await import("./route");
-    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     const template = db.tables.programs.find((p) => p.id === "tmpl-1")!;
     expect(template.is_template).toBe(true);
     expect(template.client_id).toBeNull();
@@ -123,7 +123,7 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
 
   it("anchors the copy to a start date so program position is calendar-aware", async () => {
     const { PATCH } = await import("./route");
-    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     const assignedId = db.tables.profiles.find((p) => p.id === "client-1")!.program_id;
     const assigned = db.tables.programs.find((p) => p.id === assignedId)!;
     expect(assigned.starts_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -132,7 +132,7 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
 
   it("marks a copy of a meet-dated template as date-anchored", async () => {
     const { PATCH } = await import("./route");
-    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: Promise.resolve({ id: "client-1" }) });
     const assignedId = db.tables.profiles.find((p) => p.id === "client-1")!.program_id;
     expect(db.tables.programs.find((p) => p.id === assignedId)!.schedule_mode).toBe("date_anchored");
   });
@@ -140,7 +140,7 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
   it("does not spawn a duplicate when re-saving the client's own program", async () => {
     const { PATCH } = await import("./route");
     const before = db.tables.programs.length;
-    const res = await PATCH(fakeRequest({ program_id: "owned-1" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "owned-1" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(200);
     expect(db.tables.programs).toHaveLength(before);
     expect(db.tables.profiles.find((p) => p.id === "client-1")!.program_id).toBe("owned-1");
@@ -148,13 +148,13 @@ describe("PATCH /api/clients/[id] — program assignment always copies", () => {
 
   it("refuses to assign another client's program", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ program_id: "someone-else" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "someone-else" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("404s on a program that does not exist", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ program_id: "nope" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "nope" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(404);
   });
 });
@@ -166,7 +166,7 @@ describe("PATCH /api/clients/[id] — assignment follows the program", () => {
 
   it("creates a calendar-aware assignment alongside the program copy", async () => {
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(200);
 
     const assignment = db.tables.program_assignments.find((a) => a.profile_id === "client-1");
@@ -180,17 +180,17 @@ describe("PATCH /api/clients/[id] — assignment follows the program", () => {
 
   it("carries date-anchoring onto the assignment for a meet block", async () => {
     const { PATCH } = await import("./route");
-    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: Promise.resolve({ id: "client-1" }) });
     const assignment = db.tables.program_assignments.find((a) => a.profile_id === "client-1");
     expect(assignment!.schedule_mode).toBe("date_anchored");
   });
 
   it("supersedes the previous assignment rather than deleting it", async () => {
     const { PATCH } = await import("./route");
-    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     const first = db.tables.program_assignments.find((a) => a.profile_id === "client-1")!.id;
 
-    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: { id: "client-1" } });
+    await PATCH(fakeRequest({ program_id: "meet-tmpl" }), { params: Promise.resolve({ id: "client-1" }) });
 
     const all = db.tables.program_assignments.filter((a) => a.profile_id === "client-1");
     expect(all).toHaveLength(2);
@@ -213,7 +213,7 @@ describe("PATCH /api/clients/[id] — assignment follows the program", () => {
     mockSupabaseForRequest.mockResolvedValue({ client: db, session: coachSession() });
 
     const { PATCH } = await import("./route");
-    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: { id: "client-1" } });
+    const res = await PATCH(fakeRequest({ program_id: "tmpl-1" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(500);
   });
 });

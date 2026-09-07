@@ -7,7 +7,7 @@ import type { Measurement, PR } from "@/lib/types";
 /** Coach's own weight/measurement/PR tracking — same ProgressView component
  * the client-facing /progress page uses, scoped to the coach's own profile. */
 export default async function CoachMyProgressPage() {
-  const { client, session: user } = await requireUser("coach");
+  const { client, session: user, profile } = await requireUser("coach");
 
   const [{ data: measurements }, { data: prs }] = await Promise.all([
     client.from("measurements").select("*").eq("profile_id", user.id).order("date", { ascending: true }),
@@ -28,6 +28,8 @@ export default async function CoachMyProgressPage() {
           measurements={(measurements ?? []) as Measurement[]}
           prs={(prs ?? []) as PR[]}
           profileId={user.id}
+          sex={profile.sex}
+          heightIn={profile.height_in}
         />
       </main>
     </div>

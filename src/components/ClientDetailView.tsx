@@ -143,7 +143,6 @@ function ActivityTab({ profileId }: { profileId: string }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [initialLoaded, setInitialLoaded] = useState(false);
 
   async function loadPage(before?: string) {
     const url = before ? `/api/clients/${profileId}/activity?before=${encodeURIComponent(before)}` : `/api/clients/${profileId}/activity`;
@@ -154,13 +153,11 @@ function ActivityTab({ profileId }: { profileId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     loadPage().then((page) => {
       if (cancelled) return;
       setEvents(page.events);
       setCursor(page.nextCursor);
       setLoading(false);
-      setInitialLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -179,7 +176,7 @@ function ActivityTab({ profileId }: { profileId: string }) {
     setLoadingMore(false);
   }
 
-  if (loading && !initialLoaded) {
+  if (loading) {
     return <p className="text-jcf-gray text-sm">Loading activity…</p>;
   }
   if (events.length === 0) {
@@ -381,7 +378,7 @@ function ProgramTab({
   for (const tm of trainingMaxes) trainingMaxRecord[tm.lift] = Number(tm.weight);
 
   // Meet-prep tools (training maxes, joker requests, attempt plan, weaknesses) only
-  // matter for powerlifting clients — keep them out of the way for everyone else,
+  // matter for clients with a dated meet block — keep them out of the way for everyone else,
   // unless this client already has meet-prep data on record (e.g. goal changed
   // after the fact) or the coach explicitly asks to see them.
   const hasMeetPrepData =
@@ -389,7 +386,7 @@ function ProgramTab({
     trainingMaxes.some((t) => t.lift === "meet_bench" || t.lift === "meet_deadlift") ||
     !!program?.attempt_plan ||
     !!program?.weaknesses;
-  const meetPrepRelevant = program?.goal === "powerlifting" || hasMeetPrepData;
+  const meetPrepRelevant = !!program?.meet_date || hasMeetPrepData;
   const [manuallyShowMeetPrep, setManuallyShowMeetPrep] = useState(false);
   const showMeetPrep = meetPrepRelevant || manuallyShowMeetPrep;
 

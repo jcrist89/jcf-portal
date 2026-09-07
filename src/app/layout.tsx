@@ -40,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${oswald.variable} ${inter.variable}`}>
       <body className="font-body bg-jcf-black text-jcf-white min-h-screen antialiased">
+        <a href="#main-content" className="skip-link">Skip to main content</a>
         {children}
         <script
           dangerouslySetInnerHTML={{

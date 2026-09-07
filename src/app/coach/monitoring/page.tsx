@@ -17,7 +17,8 @@ const LEVEL_STYLES: Record<string, string> = {
  * internals; context is limited to what each call site chose to record (see
  * each logEvent() call for exactly what's included).
  */
-export default async function MonitoringPage({ searchParams }: { searchParams: { before?: string } }) {
+export default async function MonitoringPage(props: { searchParams: Promise<{ before?: string }> }) {
+  const searchParams = await props.searchParams;
   const { client } = await requireUser("coach");
 
   let query = client

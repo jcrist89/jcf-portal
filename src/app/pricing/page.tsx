@@ -48,11 +48,12 @@ const TIERS = [
   },
 ] as const;
 
-export default function PricingPage({
-  searchParams,
-}: {
-  searchParams: { checkout?: string };
-}) {
+export default async function PricingPage(
+  props: {
+    searchParams: Promise<{ checkout?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const checkoutStatus = searchParams.checkout === "cancelled" ? "cancelled" as const : null;
 
   return (

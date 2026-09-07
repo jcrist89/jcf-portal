@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { getBrowserClient } from "@/lib/supabase/browser";
@@ -47,9 +47,6 @@ export function CoachOverview({
   const [showCreate, setShowCreate] = useState(false);
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [search, setSearch] = useState("");
-  const summariesRef = useRef(summaries);
-  summariesRef.current = summaries;
-
   const sorted = useMemo(() => {
     return [...summaries].sort((a, b) => {
       if (a.profile.is_active !== b.profile.is_active) return a.profile.is_active ? -1 : 1;

@@ -29,7 +29,7 @@ describe("GET /api/clients/[id]/activity", () => {
       session: { id: "c1", email: "a@b.com", role: "client", fullName: "A", tier: "free", onboarded: true },
     });
     const { GET } = await import("./route");
-    const res = await GET(fakeRequest(), { params: { id: "c1" } });
+    const res = await GET(fakeRequest(), { params: Promise.resolve({ id: "c1" }) });
     expect(res.status).toBe(403);
   });
 
@@ -39,7 +39,7 @@ describe("GET /api/clients/[id]/activity", () => {
       session: { id: "coach-1", email: "c@b.com", role: "coach", fullName: "Coach", tier: "free", onboarded: true },
     });
     const { GET } = await import("./route");
-    const res = await GET(fakeRequest(), { params: { id: "c1" } });
+    const res = await GET(fakeRequest(), { params: Promise.resolve({ id: "c1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.events).toHaveLength(1);

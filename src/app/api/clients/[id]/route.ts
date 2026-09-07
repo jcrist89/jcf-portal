@@ -6,7 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trainingDateIn, DEFAULT_TIMEZONE } from "@/lib/localDate";
 import { assignProgram } from "@/server/schedule";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx || ctx.session.role !== "coach") {
     return NextResponse.json({ error: "Coach access required." }, { status: 403 });
@@ -81,7 +82,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ profile });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx || ctx.session.role !== "coach") {
     return NextResponse.json({ error: "Coach access required." }, { status: 403 });

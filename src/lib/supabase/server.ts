@@ -21,8 +21,8 @@ export interface RequestContext {
  * Request-scoped Supabase client bound to the real Supabase Auth session cookie.
  * RLS policies see auth.uid() = the signed-in user's id directly — no custom JWT minting.
  */
-export function createClient(): SupabaseClient {
-  const cookieStore = cookies();
+export async function createClient(): Promise<SupabaseClient> {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -55,7 +55,7 @@ export function createClient(): SupabaseClient {
  * auth.getUser() round-trip and a duplicate profiles select on every render.
  */
 export async function supabaseForRequest(): Promise<RequestContext | null> {
-  const client = createClient();
+  const client = await createClient();
   const {
     data: { user: authUser },
   } = await client.auth.getUser();
