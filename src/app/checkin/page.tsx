@@ -5,6 +5,7 @@ import { CheckinForm } from "@/components/CheckinForm";
 import { checkinState, currentCheckinDate, type Checkin } from "@/domain/checkin";
 import { trainingDateIn } from "@/lib/localDate";
 import type { Engagement } from "@/domain/engagement";
+import { loadOfferEntitlements } from "@/server/offerEntitlements";
 
 export default async function CheckinPage() {
   const { client, session: user, profile } = await requireUser("client");
@@ -26,15 +27,19 @@ export default async function CheckinPage() {
   ]);
 
   const engagement = (engagementRow as Engagement | null) ?? null;
+  const entitlements = await loadOfferEntitlements(client, engagement?.offer_code);
+  const weeklyCheckins = entitlements.checkins === true;
   const checkins = (rows ?? []) as Checkin[];
-  const dueOn = currentCheckinDate(engagement, today);
-  const state = checkinState(
-    engagement,
-    checkins.find((c) => c.due_local_date === dueOn) ?? null,
-    today,
-    new Date().toISOString(),
-  );
-  const current = checkins.find((c) => c.due_local_date === state.dueOn) ?? null;
+  const dueOn = weeklyCheckins ? currentCheckinDate(engagement, today) : null;
+  const state = weeklyCheckins
+    ? checkinState(
+        engagement,
+        checkins.find((c) => c.due_local_date === dueOn) ?? null,
+        today,
+        new Date().toISOString(),
+      )
+    : null;
+  const current = state ? checkins.find((c) => c.due_local_date === state.dueOn) ?? null : null;
 
   return (
     <div className="pb-24">
@@ -67,11 +72,11 @@ export default async function CheckinPage() {
           <>
             {state.status === "overdue" && (
               <div className="rounded-sm p-3 mb-4 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
-                This one&apos;s {state.daysOverdue} day{state.daysOverdue === 1 ? "" : "s"} late. Two minutes and
+                This one&apos;s {state?.daysOverdue} day{state?.daysOverdue === 1 ? "" : "s"} late. Two minutes and
                 it&apos;s done.
               </div>
             )}
-            <CheckinForm profileId={user.id} dueOn={state.dueOn ?? today} initial={null} />
+            <CheckinForm profileId={user.id} dueOn={state?.dueOn ?? today} initial={null} />
           </>
         )}
 
