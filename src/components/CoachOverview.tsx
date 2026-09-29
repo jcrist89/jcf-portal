@@ -156,9 +156,9 @@ export function CoachOverview({
           {needsAttention > 0 && (
             <button
               onClick={() => setAttentionOnly((v) => !v)}
-              className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm border ${
+              className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-xl border ${
                 attentionOnly
-                  ? "bg-jcf-danger text-white border-jcf-danger"
+                  ? "bg-jcf-danger text-jcf-black border-jcf-danger"
                   : "bg-jcf-danger/15 text-jcf-danger border-jcf-danger/40"
               }`}
             >
@@ -174,7 +174,7 @@ export function CoachOverview({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search clients by name or email..."
-        className="w-full sm:w-72 bg-jcf-panel border border-white/15 rounded-sm px-3 py-2 text-sm text-white placeholder:text-jcf-gray/60 focus:outline-none focus:border-jcf-gold mb-4"
+        className="w-full sm:w-72 bg-jcf-black/40 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder:text-jcf-gray/60 focus:outline-none focus:border-jcf-gold mb-4"
       />
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
@@ -190,7 +190,7 @@ export function CoachOverview({
             <Link
               key={s.profile.id}
               href={`/coach/clients/${s.profile.id}`}
-              className={`bg-jcf-panel border rounded-sm p-4 hover:border-jcf-gold/50 transition-colors ${
+              className={`bg-jcf-panel/80 border rounded-2xl p-4 shadow-[0_14px_38px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 hover:border-jcf-blue/35 transition-all ${
                 s.profile.is_active ? "border-white/10" : "border-white/5 opacity-50"
               }`}
             >
@@ -208,11 +208,11 @@ export function CoachOverview({
                 )}
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm bg-jcf-gold/10 text-jcf-gold">
+                <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-xl bg-jcf-gold/10 text-jcf-gold">
                   {TIER_LABELS[s.profile.tier] ?? s.profile.tier}
                 </span>
                 <span
-                  className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm ${
+                  className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-xl ${
                     s.profile.subscription_status === "active"
                       ? "bg-jcf-success/20 text-jcf-success"
                       : s.profile.subscription_status === "past_due"
@@ -308,7 +308,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-6" onClick={onClose}>
       <div
-        className="bg-jcf-panel border border-white/10 rounded-sm p-6 max-w-sm w-full"
+        className="bg-jcf-panel/95 border border-white/10 rounded-[24px] p-6 max-w-sm w-full shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
         onClick={(e) => e.stopPropagation()}
       >
         {done ? (
