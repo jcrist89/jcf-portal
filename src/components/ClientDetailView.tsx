@@ -225,6 +225,9 @@ function OverviewTab({ profile }: { profile: Profile }) {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [pendingTier, setPendingTier] = useState<string | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
 
   async function save() {
     setSaving(true);
@@ -290,6 +293,33 @@ function OverviewTab({ profile }: { profile: Profile }) {
     router.refresh();
   }
 
+  async function confirmDeleteClient() {
+    setConfirmDelete(false);
+    setDeleting(true);
+    setDeleteMessage("");
+
+    try {
+      const response = await fetch(`/api/clients/${profile.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permanently: true }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setDeleteMessage(data?.error ?? "Could not permanently delete this client.");
+        return;
+      }
+
+      router.push("/coach/clients");
+      router.refresh();
+    } catch {
+      setDeleteMessage("Could not permanently delete this client.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
@@ -329,8 +359,12 @@ function OverviewTab({ profile }: { profile: Profile }) {
           <Button variant={profile.is_active ? "danger" : "secondary"} onClick={toggleActive}>
             {profile.is_active ? "Deactivate Client" : "Reactivate Client"}
           </Button>
+          <Button variant="danger" onClick={() => setConfirmDelete(true)} disabled={deleting}>
+            {deleting ? "Deleting..." : "Delete Client Permanently"}
+          </Button>
         </div>
         {resetMessage && <p className="text-sm mt-3 text-jcf-gray">{resetMessage}</p>}
+        {deleteMessage && <p className="text-sm mt-3 text-red-600">{deleteMessage}</p>}
       </div>
 
       <ConfirmDialog
@@ -341,6 +375,15 @@ function OverviewTab({ profile }: { profile: Profile }) {
         destructive
         onConfirm={confirmDeactivateClient}
         onCancel={() => setConfirmDeactivate(false)}
+      />
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Client Permanently"
+        description="This removes the client’s sign-in account and all portal data. This cannot be undone."
+        confirmLabel="Delete Permanently"
+        destructive
+        onConfirm={confirmDeleteClient}
+        onCancel={() => setConfirmDelete(false)}
       />
       <ConfirmDialog
         open={pendingTier != null}
