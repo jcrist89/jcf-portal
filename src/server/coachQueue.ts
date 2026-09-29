@@ -84,6 +84,25 @@ export async function loadCoachQueue(
       .order("due_local_date", { ascending: false }),
   ]);
 
+  const offerCodes = Array.from(
+    new Set((engagements ?? []).map((e: any) => e.offer_code).filter(Boolean)),
+  );
+  const offerCheckins = new Map<string, boolean>();
+  if (offerCodes.length > 0) {
+    const { data: offerRows } = await client
+      .from("offers")
+      .select("code, entitlements")
+      .in("code", offerCodes);
+    for (const offer of offerRows ?? []) {
+      offerCheckins.set(
+        offer.code,
+        !!offer.entitlements &&
+          typeof offer.entitlements === "object" &&
+          (offer.entitlements as Record<string, unknown>).checkins === true,
+      );
+    }
+  }
+
   const byProfile = <T extends { profile_id: string }>(rows: T[] | null) => {
     const map = new Map<string, T[]>();
     for (const r of rows ?? []) {
@@ -141,13 +160,20 @@ export async function loadCoachQueue(
     // — an overdue check-in has never been written.
     const engagement = engagementByProfile.get(profile.id) ?? null;
     const myCheckins = (checkinsByProfile.get(profile.id) ?? []) as unknown as Checkin[];
-    const state = checkinState(
-      engagement,
-      myCheckins.find((c) => c.due_local_date === currentDueDate(engagement, today)) ?? null,
-      today,
-      now.toISOString(),
-    );
-    const activeCheckin = myCheckins.find((c) => c.due_local_date === state.dueOn) ?? null;
+    const weeklyCheckins = engagement ? offerCheckins.get(engagement.offer_code) === true : false;
+    const dueDate = weeklyCheckins ? currentDueDate(engagement, today) : null;
+    const state = weeklyCheckins
+      ? checkinState(
+          engagement,
+          myCheckins.find((c) => c.due_local_date === dueDate) ?? null,
+          today,
+          now.toISOString(),
+        )
+      : null;
+    const activeCheckin =
+      state?.dueOn != null
+        ? myCheckins.find((c) => c.due_local_date === state.dueOn) ?? null
+        : null;
 
     const snapshot: ClientSnapshot = {
       profileId: profile.id,
