@@ -14,7 +14,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
         <input
           ref={ref}
           id={inputId}
-          className={`bg-jcf-panel border border-white/15 rounded-sm px-3 py-2.5 text-white placeholder:text-jcf-gray/60 focus:outline-none focus:border-jcf-gold focus-visible:ring-2 focus-visible:ring-jcf-gold/80 ${className}`}
+          className={`bg-jcf-black/40 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-jcf-gray/60 focus:outline-none focus:border-jcf-gold focus-visible:ring-2 focus-visible:ring-jcf-gold/80 ${className}`}
           {...props}
         />
       </div>
