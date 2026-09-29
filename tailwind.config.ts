@@ -16,8 +16,8 @@ const config: Config = {
           blue: "#59A9DC",
           white: "#F4F7FB",
           gray: "#8FA5BE",
-          danger: "#C1432E",
-          success: "#3F8F5F",
+          danger: "#EF6268",
+          success: "#4BC18B",
         },
       },
       fontFamily: {
