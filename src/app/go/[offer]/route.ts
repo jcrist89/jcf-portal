@@ -51,9 +51,11 @@ export async function GET(
   const config = OFFERS[offer];
   if (!config) return NextResponse.redirect(new URL("/pricing", request.url));
 
-  let visitorId = request.cookies.get(ATTR_VISITOR_COOKIE)?.value ?? null;
-  const createdVisitor = !visitorId || !/^[0-9a-f-]{36}$/i.test(visitorId);
-  if (createdVisitor) visitorId = crypto.randomUUID();
+  const existingVisitor = request.cookies.get(ATTR_VISITOR_COOKIE)?.value ?? null;
+  const validExistingVisitor =
+    existingVisitor != null && /^[0-9a-f-]{36}$/i.test(existingVisitor);
+  const visitorId = validExistingVisitor ? existingVisitor : crypto.randomUUID();
+  const createdVisitor = !validExistingVisitor;
 
   let first = decodeTouch(request.cookies.get(ATTR_FIRST_COOKIE)?.value);
   let last = decodeTouch(request.cookies.get(ATTR_LAST_COOKIE)?.value);
