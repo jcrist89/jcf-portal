@@ -8,7 +8,7 @@ export function PublicHeader() {
         <Link href="/pricing" className="rounded-xl px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-jcf-gray transition-colors hover:bg-white/5 hover:text-white">
           Coaching
         </Link>
-        <Link href="/login" className="text-xs uppercase tracking-widest text-jcf-gray hover:text-white">
+        <Link href="/login" className="rounded-xl px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-jcf-gray transition-colors hover:bg-white/5 hover:text-white">
           Sign In
         </Link>
         <Link
