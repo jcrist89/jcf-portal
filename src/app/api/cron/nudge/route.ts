@@ -111,27 +111,76 @@ async function checkTierMismatches(admin: ReturnType<typeof supabaseAdmin>): Pro
     .select("id, tier, subscription_status, stripe_subscription_id, stripe_customer_id")
     .neq("tier", "free");
 
-  // The previous version required stripe_customer_id to be non-null before testing
-  // anything, on the theory that comped clients would otherwise look mismatched. That
-  // filter also swallowed the one condition that is never legitimate: a profile
-  // claiming subscription_status 'active' with no Stripe customer behind it at all.
-  // Every live paid-tier row in the database was exactly that shape, so the check was
-  // structurally incapable of firing. Comped clients are excluded by the status they
-  // actually carry ('n/a'), not by the absence of a customer id.
+  const ids = (suspects ?? []).map((p: any) => p.id);
+  let engagementByProfile = new Map<string, any>();
+
+  if (ids.length > 0) {
+    const { data: engagements, error: engagementError } = await admin
+      .from("client_engagements")
+      .select("profile_id, billing_kind, cadence, status, starts_on, ends_on")
+      .in("profile_id", ids)
+      .in("status", ["pending", "active", "past_due"])
+      .order("starts_on", { ascending: false });
+
+    if (engagementError) {
+      await logEvent(admin, {
+        level: "error",
+        source: "cron.tier_mismatch",
+        message: "Could not load active engagements for billing health check",
+        context: { error: engagementError.message },
+      });
+      return 0;
+    }
+
+    for (const e of engagements ?? []) {
+      if (!engagementByProfile.has(e.profile_id)) engagementByProfile.set(e.profile_id, e);
+    }
+  }
+
   const mismatches = (suspects ?? []).filter((p: any) => {
-    if (p.subscription_status === "n/a") return false; // comped / manually arranged
+    if (p.subscription_status === "n/a") return false;
+
+    const engagement = engagementByProfile.get(p.id);
+
+    // The engagement is the commercial source of truth. Paid-in-full Stripe
+    // payments and manual invoices are intentionally not subscriptions, so the
+    // absence of stripe_subscription_id is correct and must not generate noise.
+    if (engagement) {
+      if (engagement.billing_kind === "stripe_payment") {
+        return p.subscription_status !== "active" || !p.stripe_customer_id;
+      }
+      if (engagement.billing_kind === "manual_invoice" || engagement.billing_kind === "complimentary") {
+        return false;
+      }
+      if (engagement.billing_kind === "stripe_subscription") {
+        return (
+          p.subscription_status === "canceled" ||
+          p.subscription_status === "past_due" ||
+          !p.stripe_customer_id ||
+          !p.stripe_subscription_id
+        );
+      }
+    }
+
+    // No current engagement means the legacy profile fields are all we have.
+    // An active paid tier with no billing record behind it is still suspicious.
     if (p.subscription_status === "active" && (!p.stripe_customer_id || !p.stripe_subscription_id)) {
-      return true; // claims an active subscription that Stripe has no record of
+      return true;
     }
     return p.subscription_status === "canceled" || p.subscription_status === "past_due";
   });
 
   for (const p of mismatches) {
+    const engagement = engagementByProfile.get(p.id);
     await logEvent(admin, {
       level: "warning",
       source: "cron.tier_mismatch",
-      message: "Paid tier with an inconsistent subscription status",
-      context: { tier: p.tier, subscriptionStatus: p.subscription_status },
+      message: "Paid tier with an inconsistent billing state",
+      context: {
+        tier: p.tier,
+        subscriptionStatus: p.subscription_status,
+        billingKind: engagement?.billing_kind ?? null,
+      },
       profileId: p.id,
     });
   }
