@@ -95,7 +95,7 @@ export function ClientNav() {
             <JcfLogo size="sm" />
           </Link>
 
-          <nav className="hidden items-center gap-1 sm:flex" aria-label="Client navigation">
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Client navigation">
             {primaryLinks.map((link) => {
               const active = isActive(link.href);
               return (
@@ -117,7 +117,7 @@ export function ClientNav() {
 
           <button
             onClick={logout}
-            className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-jcf-gray transition-colors hover:text-white sm:block"
+            className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-jcf-gray transition-colors hover:text-white md:block"
           >
             Log Out
           </button>
@@ -125,7 +125,7 @@ export function ClientNav() {
       </header>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-white/10 bg-jcf-black/90 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-white/10 bg-jcf-black/90 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden"
         aria-label="Client navigation"
       >
         {primaryLinks.map((link) => {
