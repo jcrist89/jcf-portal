@@ -89,7 +89,7 @@ export function ClientNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-jcf-black/82 px-4 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-jcf-black/80 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-5">
           <Link href="/dashboard" aria-label="Jon Crist Fit home">
             <JcfLogo size="sm" />
@@ -125,7 +125,7 @@ export function ClientNav() {
       </header>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-white/10 bg-jcf-black/92 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-white/10 bg-jcf-black/90 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:hidden"
         aria-label="Client navigation"
       >
         {primaryLinks.map((link) => {
