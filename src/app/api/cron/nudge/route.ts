@@ -86,6 +86,8 @@ export async function GET(req: NextRequest) {
 
   const mismatches = await checkTierMismatches(admin);
   const missedSessions = await markMissedSessions(admin);
+  const stalledCheckouts = await checkStalledCheckouts(admin);
+  const privateSessionAlerts = await checkPrivateSessionRequests(admin);
 
   return NextResponse.json({
     checked: clients.length,
@@ -93,6 +95,8 @@ export async function GET(req: NextRequest) {
     failed,
     tierMismatches: mismatches,
     missedSessions,
+    stalledCheckouts,
+    privateSessionAlerts,
   });
 }
 
@@ -186,6 +190,79 @@ async function checkTierMismatches(admin: ReturnType<typeof supabaseAdmin>): Pro
   }
 
   return mismatches.length;
+}
+
+async function checkStalledCheckouts(admin: ReturnType<typeof supabaseAdmin>): Promise<number> {
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: rows, error } = await admin
+    .from("jcf_checkout_purchases")
+    .select("checkout_session_id, offer_code, purchased_at")
+    .eq("payment_status", "paid")
+    .is("activated_at", null)
+    .is("ops_alerted_at", null)
+    .lt("purchased_at", cutoff);
+
+  if (error) {
+    await logEvent(admin, {
+      level: "error",
+      source: "cron.checkout_stall",
+      message: "Could not check for stalled paid checkouts",
+      context: { error: error.message },
+    });
+    return 0;
+  }
+
+  let alerted = 0;
+  for (const row of rows ?? []) {
+    await logEvent(admin, {
+      level: "warning",
+      source: "checkout.onboarding_stall",
+      message: "Paid checkout has not finished onboarding",
+      context: { offerCode: row.offer_code, purchasedAt: row.purchased_at },
+    });
+    await admin
+      .from("jcf_checkout_purchases")
+      .update({ ops_alerted_at: new Date().toISOString() })
+      .eq("checkout_session_id", row.checkout_session_id);
+    alerted += 1;
+  }
+  return alerted;
+}
+
+async function checkPrivateSessionRequests(admin: ReturnType<typeof supabaseAdmin>): Promise<number> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: rows, error } = await admin
+    .from("jcf_private_session_requests")
+    .select("id, created_at")
+    .eq("status", "requested")
+    .is("last_alerted_at", null)
+    .lt("created_at", cutoff);
+
+  if (error) {
+    await logEvent(admin, {
+      level: "error",
+      source: "cron.private_session",
+      message: "Could not check private session scheduling requests",
+      context: { error: error.message },
+    });
+    return 0;
+  }
+
+  let alerted = 0;
+  for (const row of rows ?? []) {
+    await logEvent(admin, {
+      level: "warning",
+      source: "operations.private_session",
+      message: "Private session has been waiting more than 24 hours for scheduling",
+      context: { requestedAt: row.created_at },
+    });
+    await admin
+      .from("jcf_private_session_requests")
+      .update({ last_alerted_at: new Date().toISOString() })
+      .eq("id", row.id);
+    alerted += 1;
+  }
+  return alerted;
 }
 
 /**
