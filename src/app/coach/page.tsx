@@ -4,28 +4,25 @@ import { CoachNav } from "@/components/CoachNav";
 import { CoachQueue } from "@/components/CoachQueue";
 import { loadCoachQueue } from "@/server/coachQueue";
 
-/**
- * The coach's home: who needs attention, ranked.
- *
- * Replaces an alphabetical grid of every client with their stats. The grid answered
- * "who do I have"; this answers "who is slipping", which is the question that decides
- * whether somebody is still a client in six weeks.
- */
 export default async function CoachHomePage() {
   const { client } = await requireUser("coach");
   const { queue, clientCount } = await loadCoachQueue(client);
 
   return (
-    <div>
+    <div className="pb-24 md:pb-10">
       <CoachNav />
-      <main className="px-4 pt-6 max-w-3xl mx-auto pb-24 sm:pb-16">
-        <div className="flex items-baseline justify-between gap-4 mb-1">
-          <h1 className="font-display text-2xl uppercase tracking-wide">Who Needs Me</h1>
+      <main className="mx-auto max-w-4xl px-4 pt-6">
+        <div className="mb-7 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jcf-gray">Coach dashboard</p>
+            <h1 className="font-display text-4xl uppercase leading-none tracking-wide">Who Needs Me</h1>
+            <p className="mt-2 text-sm text-jcf-gray">Work the exceptions. Leave the clients who are on track alone.</p>
+          </div>
           <Link
             href="/coach/clients"
-            className="text-jcf-gold text-xs uppercase tracking-widest hover:underline shrink-0"
+            className="shrink-0 rounded-xl border border-jcf-blue/25 bg-jcf-blue/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-jcf-blue"
           >
-            All clients →
+            All clients
           </Link>
         </div>
         <CoachQueue initialQueue={queue} clientCount={clientCount} />
