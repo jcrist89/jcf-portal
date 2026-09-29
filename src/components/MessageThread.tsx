@@ -128,7 +128,7 @@ export function MessageThread({
         })}
       </div>
 
-      <div className="sticky bottom-0 flex gap-2 border-t border-white/10 bg-jcf-black/92 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+      <div className="sticky bottom-0 flex gap-2 border-t border-white/10 bg-jcf-black/90 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
