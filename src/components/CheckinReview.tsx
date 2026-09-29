@@ -62,7 +62,7 @@ export function CheckinReview({ item }: { item: ReviewItem }) {
       : "just in";
 
   return (
-    <article className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-4">
+    <article className="bg-jcf-panel/80 border border-white/10 rounded-[20px] p-5 mb-4 shadow-[0_14px_38px_rgba(0,0,0,0.14)]">
       <div className="flex items-baseline justify-between gap-3 mb-1">
         <h2 className="font-display uppercase tracking-wide text-white">{item.name}</h2>
         <span className="text-xs text-jcf-gray shrink-0">{waitingLabel}</span>
@@ -115,7 +115,7 @@ export function CheckinReview({ item }: { item: ReviewItem }) {
         onChange={(e) => setResponse(e.target.value)}
         placeholder="Write back…"
         aria-label={`Response to ${item.name}`}
-        className="w-full bg-jcf-charcoal border border-white/15 rounded-sm px-3 py-2 text-white focus:border-jcf-gold outline-none resize-y mb-2"
+        className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-4 py-3 text-white focus:border-jcf-gold outline-none resize-y mb-2"
       />
       {error && (
         <p role="alert" className="text-jcf-danger text-xs mb-2">
