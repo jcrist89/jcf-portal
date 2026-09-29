@@ -37,14 +37,14 @@ export function AttributionLinkBuilder() {
   }
 
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <div className="bg-jcf-panel/80 border border-white/10 rounded-[20px] p-5 shadow-[0_14px_38px_rgba(0,0,0,0.14)]">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-jcf-gray">
           <span className="block uppercase tracking-widest mb-1">Offer</span>
           <select
             value={offer}
             onChange={(e) => setOffer(e.target.value)}
-            className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+            className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
           >
             {OFFERS.map((item) => (
               <option key={item.value} value={item.value}>{item.label}</option>
@@ -57,7 +57,7 @@ export function AttributionLinkBuilder() {
             value={source}
             onChange={(e) => setSource(e.target.value)}
             placeholder="instagram"
-            className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+            className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
           />
         </label>
         <label className="text-xs text-jcf-gray">
@@ -66,7 +66,7 @@ export function AttributionLinkBuilder() {
             value={medium}
             onChange={(e) => setMedium(e.target.value)}
             placeholder="dm, bio, organic"
-            className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+            className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
           />
         </label>
         <label className="text-xs text-jcf-gray">
@@ -75,7 +75,7 @@ export function AttributionLinkBuilder() {
             value={campaign}
             onChange={(e) => setCampaign(e.target.value)}
             placeholder="oct_2026_launch"
-            className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+            className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
           />
         </label>
         <label className="text-xs text-jcf-gray sm:col-span-2">
@@ -84,18 +84,18 @@ export function AttributionLinkBuilder() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="reel_014, menu_monday_03, story_reset_01"
-            className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+            className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
           />
         </label>
       </div>
 
-      <div className="mt-4 bg-jcf-black border border-white/10 rounded-sm p-3 font-mono text-xs text-jcf-gray break-all">
+      <div className="mt-4 bg-jcf-black/45 border border-white/10 rounded-xl p-3 font-mono text-xs text-jcf-gray break-all">
         {path}
       </div>
       <button
         type="button"
         onClick={copy}
-        className="mt-3 bg-[#f97316] text-black uppercase tracking-widest text-xs font-bold px-4 py-3 rounded-sm"
+        className="mt-3 bg-[#FF6B1A] text-black uppercase tracking-widest text-xs font-bold px-4 py-3 rounded-xl"
       >
         {copied ? "Copied" : "Copy tracked link"}
       </button>
