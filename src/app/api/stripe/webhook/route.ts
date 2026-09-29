@@ -30,10 +30,146 @@ function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
   return typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription.id;
 }
 
+const LOCAL_3PAY_OFFER = "JCF_LOCAL_12W_3PAY";
+
+async function ensureLocalThreePaymentSchedule(
+  admin: SupabaseClient,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+
+  if (!subscriptionId) {
+    throw new Error("Local 3-pay checkout completed without a subscription.");
+  }
+
+  const { data: offer, error: offerError } = await admin
+    .from("offers")
+    .select("stripe_price_id")
+    .eq("code", LOCAL_3PAY_OFFER)
+    .maybeSingle();
+
+  if (offerError || !offer?.stripe_price_id) {
+    throw new Error(`Local 3-pay Stripe price is not configured: ${offerError?.message ?? "missing price"}`);
+  }
+
+  const stripe = getStripe();
+  let subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const item = subscription.items.data[0];
+
+  if (!item || item.price.id !== offer.stripe_price_id) {
+    throw new Error("Local 3-pay checkout subscription does not match the approved installment price.");
+  }
+
+  // Give all future subscription events an explicit commercial identity. This
+  // keeps them out of the retired tier/price sync path below.
+  if (subscription.metadata?.offer_code !== LOCAL_3PAY_OFFER) {
+    subscription = await stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        ...subscription.metadata,
+        offer_code: LOCAL_3PAY_OFFER,
+        installment_count: "3",
+        fixed_term: "true",
+      },
+    });
+  }
+
+  let scheduleId =
+    typeof subscription.schedule === "string"
+      ? subscription.schedule
+      : subscription.schedule?.id ?? null;
+
+  if (!scheduleId) {
+    const created = await stripe.subscriptionSchedules.create({
+      from_subscription: subscription.id,
+    });
+    scheduleId = created.id;
+  }
+
+  const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+  const current = schedule.phases.find(
+    (phase) =>
+      phase.start_date <= Math.floor(Date.now() / 1000) &&
+      phase.end_date > Math.floor(Date.now() / 1000),
+  ) ?? schedule.phases[0];
+
+  if (!current) {
+    throw new Error("Stripe created a subscription schedule without a current phase.");
+  }
+
+  const phaseItems = current.items.map((phaseItem) => ({
+    price:
+      typeof phaseItem.price === "string"
+        ? phaseItem.price
+        : phaseItem.price.id,
+    quantity: phaseItem.quantity ?? 1,
+  }));
+
+  // Checkout already collected payment #1 for the current monthly period.
+  // Keep that current phase intact, then run the same price for two additional
+  // monthly periods. end_behavior=cancel stops the subscription before a fourth
+  // charge can be generated.
+  await stripe.subscriptionSchedules.update(schedule.id, {
+    end_behavior: "cancel",
+    metadata: {
+      ...schedule.metadata,
+      offer_code: LOCAL_3PAY_OFFER,
+      installment_count: "3",
+      fixed_term: "true",
+    },
+    phases: [
+      {
+        start_date: current.start_date,
+        end_date: current.end_date,
+        items: phaseItems,
+        proration_behavior: "none",
+      },
+      {
+        start_date: current.end_date,
+        iterations: 2,
+        items: phaseItems,
+        proration_behavior: "none",
+        metadata: {
+          offer_code: LOCAL_3PAY_OFFER,
+          installment_count: "3",
+          fixed_term: "true",
+        },
+      },
+    ],
+  });
+
+  // The Supabase checkout bridge may have recorded the purchase before or after
+  // this webhook. Update if the row already exists; the bridge independently
+  // persists subscriptionId so ordering between the two endpoints is harmless.
+  await admin
+    .from("jcf_checkout_purchases")
+    .update({
+      stripe_subscription_id: subscription.id,
+      stripe_schedule_id: schedule.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("checkout_session_id", session.id);
+}
+
 async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+      const offerCode = session.metadata?.offer_code;
+
+      if (offerCode === LOCAL_3PAY_OFFER) {
+        await ensureLocalThreePaymentSchedule(admin, session);
+        await logEvent(admin, {
+          level: "info",
+          source: "stripe.installments",
+          message: "Local 3-pay subscription fixed to exactly three monthly charges",
+          context: { sessionId: session.id },
+        });
+        break;
+      }
+
       const profileId = session.metadata?.profile_id ?? session.client_reference_id;
       const tier = session.metadata?.tier;
       if (!profileId || !tier || !session.subscription) {
@@ -111,7 +247,36 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
       const profileId = sub.metadata?.profile_id;
+      const offerCode = sub.metadata?.offer_code;
       const status = statusFromSubscription(sub);
+
+      if (offerCode === LOCAL_3PAY_OFFER) {
+        const { data: matched, error: matchError } = await admin
+          .from("profiles")
+          .update({
+            subscription_status: status,
+            stripe_subscription_id: sub.id,
+          })
+          .eq("stripe_subscription_id", sub.id)
+          .select("id");
+
+        if (matchError) {
+          await logEvent(admin, {
+            level: "error",
+            source: "stripe.installments",
+            message: "Local 3-pay subscription update could not sync profile billing status",
+            context: { subscriptionId: sub.id, error: matchError.message },
+          });
+        } else if (!matched || matched.length === 0) {
+          await logEvent(admin, {
+            level: "info",
+            source: "stripe.installments",
+            message: "Local 3-pay subscription update arrived before onboarding linked the profile",
+            context: { subscriptionId: sub.id },
+          });
+        }
+        break;
+      }
       // Re-derive tier from the subscription's actual current price, not just
       // subscription_status — a plan change made via the Stripe customer portal
       // (billing/portal route allows switching plans) fires this event but was
@@ -211,6 +376,26 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
       const profileId = sub.metadata?.profile_id;
+      const offerCode = sub.metadata?.offer_code;
+
+      if (offerCode === LOCAL_3PAY_OFFER) {
+        const { error: fixedTermError } = await admin
+          .from("profiles")
+          .update({ subscription_status: "canceled" })
+          .eq("stripe_subscription_id", sub.id);
+
+        if (fixedTermError) {
+          await logEvent(admin, {
+            level: "error",
+            source: "stripe.installments",
+            message: "Completed Local 3-pay subscription could not update billing status",
+            context: { subscriptionId: sub.id, error: fixedTermError.message },
+          });
+        }
+        // Do not downgrade the coaching tier here. The 12-week engagement owns
+        // service access and may still be inside its final days when billing ends.
+        break;
+      }
 
       // Scope the downgrade to this exact subscription even when metadata names the
       // profile. Matching on profile_id alone downgrades whatever subscription the
