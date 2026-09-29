@@ -69,6 +69,35 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Link any pre-checkout agreement acceptance to the immutable
+    // Stripe checkout reference and the email Stripe collected. This is audit
+    // plumbing only; no agreement requirement is enabled until a reviewed
+    // document version is activated in the legal requirements table.
+    if (offerCode && visitorId && /^[0-9a-f-]{36}$/i.test(visitorId)) {
+      const checkoutEmail = String(
+        session.customer_details?.email ?? session.customer_email ?? "",
+      ).trim().toLowerCase();
+
+      const { error: acceptanceLinkError } = await admin
+        .from("jcf_agreement_acceptances")
+        .update({
+          checkout_session_id: sessionId,
+          contact_email: checkoutEmail || null,
+        })
+        .eq("visitor_id", visitorId)
+        .eq("offer_code", offerCode)
+        .is("checkout_session_id", null);
+
+      if (acceptanceLinkError) {
+        await logEvent(admin, {
+          level: "warning",
+          source: "legal.acceptance",
+          message: "Checkout completed but agreement acceptance could not be linked",
+          context: { sessionId, offerCode, error: acceptanceLinkError.message },
+        });
+      }
+    }
+
     // If this buyer already entered the sales pipeline, close that loop
     // automatically. Prefer the first-party visitor id; fall back to checkout
     // email for DM/manual leads that were logged before a tracked link existed.
