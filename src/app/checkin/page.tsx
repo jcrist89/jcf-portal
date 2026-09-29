@@ -44,7 +44,7 @@ export default async function CheckinPage() {
   return (
     <div className="pb-24">
       <ClientNav />
-      <main className="px-4 pt-6 max-w-2xl mx-auto">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-2xl mx-auto">
         <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-1">Check-In</h1>
 
         {current?.submitted_at ? (
