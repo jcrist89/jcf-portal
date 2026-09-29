@@ -40,7 +40,7 @@ export default async function LandingPage() {
               <h1 className="max-w-4xl font-display text-5xl uppercase leading-[0.96] tracking-tight text-white sm:text-7xl">
                 Fitness That Works
                 <br />
-                <span className="text-jcf-gold">When Life Doesn't.</span>
+                <span className="text-jcf-gold">When Life Doesn&apos;t.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-jcf-gray sm:text-lg">
                 Individualized training, practical nutrition guidance, and coaching built for shift workers, busy adults, and people tired of restarting every time the week gets ugly.
