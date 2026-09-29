@@ -197,7 +197,7 @@ export function CoachOverview({
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="font-display uppercase text-white">
-                    {s.profile.full_name ?? s.profile.email}
+                    {profileDisplayName(s.profile)}
                   </div>
                   <div className="text-[11px] text-jcf-gray uppercase tracking-widest">
                     {s.profile.goal?.replace("_", " ") ?? "No goal set"}
