@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#07111C"/>
+  <g transform="skewX(-7 256 256)" font-family="Arial Black, Arial, sans-serif" font-size="226" font-weight="900" letter-spacing="-34">
+    <text x="67" y="340" fill="#59A9DC">J</text>
+    <text x="191" y="340" fill="#FF6B1A">C</text>
+    <text x="334" y="340" fill="#59A9DC">F</text>
+  </g>
+  <path d="M70 448h372" stroke="#FF6B1A" stroke-width="10" stroke-linecap="round"/>
+</svg>
