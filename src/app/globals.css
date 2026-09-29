@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 html, body {
-  background-color: #0a0a0a;
+  background-color: #07111C;
   color: #f5f5f5;
 }
 
 a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid #D9A125;
+  outline: 2px solid #FF6B1A;
   outline-offset: 3px;
 }
 
@@ -17,8 +17,8 @@ a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visi
   left: 1rem;
   top: -4rem;
   z-index: 100;
-  background: #D9A125;
-  color: #0a0a0a;
+  background: #FF6B1A;
+  color: #07111C;
   padding: 0.75rem 1rem;
   font-weight: 700;
 }
@@ -28,8 +28,8 @@ a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visi
 }
 
 ::selection {
-  background-color: #D9A125;
-  color: #0a0a0a;
+  background-color: #FF6B1A;
+  color: #07111C;
 }
 
 .jcf-diagonal {
@@ -41,6 +41,49 @@ a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visi
   height: 6px;
 }
 .jcf-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #D9A125;
+  background-color: #FF6B1A;
   border-radius: 3px;
+}
+
+
+/* JCF DESIGN SYSTEM V2 FOUNDATION */
+:root {
+  --jcf-bg: #07111c;
+  --jcf-surface: #0f2031;
+  --jcf-surface-2: #14283d;
+  --jcf-line: rgba(143, 165, 190, 0.16);
+  --jcf-orange: #ff6b1a;
+  --jcf-blue: #59a9dc;
+  --jcf-text: #f4f7fb;
+  --jcf-muted: #8fa5be;
+}
+
+html { background: var(--jcf-bg); }
+
+body {
+  font-family: var(--font-body), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 92% -10%, rgba(89,169,220,.10), transparent 32rem),
+    radial-gradient(circle at -8% 18%, rgba(255,107,26,.08), transparent 28rem),
+    var(--jcf-bg);
+}
+
+.font-display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-weight: 400;
+  letter-spacing: .012em;
+}
+
+a, button, input, textarea, select {
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+::selection {
+  background: var(--jcf-orange);
+  color: var(--jcf-bg);
+}
+
+.jcf-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255,107,26,.72);
 }
