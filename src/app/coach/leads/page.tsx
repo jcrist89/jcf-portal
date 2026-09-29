@@ -102,7 +102,7 @@ export default async function LeadsPage() {
   return (
     <div className="pb-24">
       <CoachNav />
-      <main className="px-4 pt-6 max-w-6xl mx-auto pb-16">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-6xl mx-auto pb-16">
         <div className="mb-6">
           <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.25em] mb-2">Sales Pipeline</p>
           <h1 className="font-display text-4xl uppercase leading-none tracking-wide">Leads + Cohorts</h1>
