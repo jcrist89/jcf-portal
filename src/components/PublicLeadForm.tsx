@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 export function PublicLeadForm({ initialInterest = "" }: { initialInterest?: string }) {
   const [form, setForm] = useState({
@@ -15,7 +15,7 @@ export function PublicLeadForm({ initialInterest = "" }: { initialInterest?: str
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setState("sending");
     setError(null);
