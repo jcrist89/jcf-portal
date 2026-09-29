@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
+  SHIFT_RESET_CAP,
+  SHIFT_RESET_OFFER_CODE,
+  shiftResetEnrollmentOpen,
+} from "@/lib/shiftReset";
+import {
   ATTR_FIRST_COOKIE,
   ATTR_LAST_COOKIE,
   ATTR_VISITOR_COOKIE,
@@ -51,6 +56,21 @@ export async function GET(
   const config = OFFERS[offer];
   if (!config) return NextResponse.redirect(new URL("/pricing", request.url));
 
+  const admin = supabaseAdmin();
+  if (config.offerCode === SHIFT_RESET_OFFER_CODE) {
+    const { count } = await admin
+      .from("jcf_checkout_purchases")
+      .select("checkout_session_id", { count: "exact", head: true })
+      .eq("offer_code", SHIFT_RESET_OFFER_CODE)
+      .eq("payment_status", "paid");
+    const paidCount = count ?? 0;
+    if (!shiftResetEnrollmentOpen(paidCount)) {
+      const target = new URL("/pricing", request.url);
+      target.searchParams.set("reset", paidCount >= SHIFT_RESET_CAP ? "full" : "closed");
+      return NextResponse.redirect(target);
+    }
+  }
+
   const existingVisitor = request.cookies.get(ATTR_VISITOR_COOKIE)?.value ?? null;
   const validExistingVisitor =
     existingVisitor != null && /^[0-9a-f-]{36}$/i.test(existingVisitor);
@@ -66,7 +86,6 @@ export async function GET(
   if (!first) first = last ?? fallback;
   if (!last) last = first ?? fallback;
 
-  const admin = supabaseAdmin();
   const { error } = await admin.from("jcf_attribution_events").insert({
     visitor_id: visitorId,
     event_type: "checkout_click",

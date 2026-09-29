@@ -2,13 +2,14 @@ import { requireUser } from "@/lib/auth/require";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CoachNav } from "@/components/CoachNav";
 import { PrivateSessionOps } from "@/components/PrivateSessionOps";
+import { shiftResetEnrollmentOpen } from "@/lib/shiftReset";
 
 const SALES_LINKS = [
-  { label: "Local Coaching — $399 PIF", href: "https://buy.stripe.com/bJebJ37Kf6tI6cYaqnaIM0j" },
-  { label: "Local Coaching — 3 × $150", href: "https://buy.stripe.com/6oU4gB5C76tIeJu41ZaIM0l" },
-  { label: "Remote Coaching — $997 PIF", href: "https://buy.stripe.com/7sY4gB0hN9FUdFqeGDaIM0g" },
-  { label: "Private Training — $45", href: "https://buy.stripe.com/9B69AV3tZ3hw0SEdCzaIM0e" },
-  { label: "Shift Reset — $27", href: "https://buy.stripe.com/8x26oJ0hN4lA1WIcyvaIM0k" },
+  { label: "Local Coaching — $399 PIF", href: "https://buy.stripe.com/bJebJ37Kf6tI6cYaqnaIM0j", reset: false },
+  { label: "Local Coaching — 3 × $150", href: "https://buy.stripe.com/6oU4gB5C76tIeJu41ZaIM0l", reset: false },
+  { label: "Remote Coaching — $997 PIF", href: "https://buy.stripe.com/7sY4gB0hN9FUdFqeGDaIM0g", reset: false },
+  { label: "Private Training — $45", href: "https://buy.stripe.com/9B69AV3tZ3hw0SEdCzaIM0e", reset: false },
+  { label: "Shift Reset — $27", href: "https://buy.stripe.com/8x26oJ0hN4lA1WIcyvaIM0k", reset: true },
 ] as const;
 
 function when(value: string) {
@@ -44,6 +45,8 @@ export default async function OperationsPage() {
   const stalls = stalled ?? [];
   const privateSessions = sessions ?? [];
   const roster = resetRoster ?? [];
+  const resetOpen = shiftResetEnrollmentOpen(roster.length);
+  const salesLinks = SALES_LINKS.filter((link) => !link.reset || resetOpen);
 
   return (
     <div className="pb-24">
@@ -60,7 +63,7 @@ export default async function OperationsPage() {
         <section className="mb-8">
           <h2 className="font-display uppercase tracking-wide mb-3">Coach Sales Links</h2>
           <div className="grid gap-2 sm:grid-cols-2">
-            {SALES_LINKS.map((link) => (
+            {salesLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
@@ -74,7 +77,7 @@ export default async function OperationsPage() {
             ))}
           </div>
           <p className="text-jcf-gray text-xs mt-3">
-            The 3 × $150 link is intentionally coach-only and is not published on the public pricing page.
+            The 3 × $150 link is intentionally coach-only. Shift Reset checkout appears here only during its enrollment window and while spots remain.
           </p>
         </section>
 
