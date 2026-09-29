@@ -25,8 +25,8 @@ export const metadata: Metadata = {
     title: "JCF",
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: "/icons/jcf-app-icon.svg",
+    apple: "/icons/jcf-app-icon.svg",
   },
 };
 
