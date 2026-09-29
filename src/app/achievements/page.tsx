@@ -20,7 +20,7 @@ export default async function AchievementsPage() {
     <div className="pb-24">
       <ClientNav />
       <main className="px-4 pt-6 max-w-2xl mx-auto">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-1">Achievements</h1>
+        <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-1">Achievements</h1>
         <p className="text-jcf-gray text-sm mb-6">
           {earned.length} of {ACHIEVEMENT_CATALOG.length} badges earned
         </p>
@@ -32,10 +32,10 @@ export default async function AchievementsPage() {
             return (
               <div
                 key={badge.type}
-                className={`rounded-sm p-4 border relative overflow-hidden ${
+                className={`rounded-2xl p-4 border relative overflow-hidden ${
                   isEarned
                     ? "bg-jcf-gold/10 border-jcf-gold/50"
-                    : "bg-jcf-panel border-white/10 opacity-50"
+                    : "bg-jcf-panel/75 border-white/10 opacity-50"
                 }`}
               >
                 <div
