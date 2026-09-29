@@ -4,6 +4,7 @@ import Link from "next/link";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { getBrowserClient } from "@/lib/supabase/browser";
 import { computeClientSummary, type ClientSummary } from "@/lib/clientSummary";
+import { profileDisplayName } from "@/lib/profileDisplay";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 
