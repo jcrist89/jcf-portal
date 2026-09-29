@@ -20,7 +20,13 @@ export default async function OperationsPage() {
   await requireUser("coach");
   const admin = supabaseAdmin();
 
-  const [{ data: stalled }, { data: sessions }, { data: resetRoster }] = await Promise.all([
+  const [
+    { data: stalled },
+    { data: sessions },
+    { data: resetRoster },
+    { data: legalDocs },
+    { data: legalRequirements },
+  ] = await Promise.all([
     admin
       .from("jcf_checkout_purchases")
       .select("checkout_session_id, offer_code, customer_email, customer_name, purchased_at")
@@ -40,6 +46,13 @@ export default async function OperationsPage() {
       .eq("offer_code", "JCF_SHIFT_RESET_2026_11")
       .eq("payment_status", "paid")
       .order("purchased_at", { ascending: true }),
+    admin
+      .from("jcf_legal_documents")
+      .select("document_code,version,title,status")
+      .in("document_code", ["terms_of_use","health_disclaimer","coaching_agreement","shift_reset_terms"]),
+    admin
+      .from("jcf_offer_legal_requirements")
+      .select("offer_code,document_code,enabled"),
   ]);
 
   const stalls = stalled ?? [];
@@ -47,6 +60,15 @@ export default async function OperationsPage() {
   const roster = resetRoster ?? [];
   const resetOpen = shiftResetEnrollmentOpen(roster.length);
   const salesLinks = SALES_LINKS.filter((link) => !link.reset || resetOpen);
+  const legalRows = legalDocs ?? [];
+  const legalRequirementRows = legalRequirements ?? [];
+  const draftLegal = legalRows.filter((row) => row.status !== "active");
+  const enabledLegal = legalRequirementRows.filter((row) => row.enabled);
+  const legalReady =
+    legalRows.length >= 4 &&
+    draftLegal.length === 0 &&
+    legalRequirementRows.length >= 5 &&
+    enabledLegal.length === legalRequirementRows.length;
 
   return (
     <div className="pb-24">
@@ -59,6 +81,34 @@ export default async function OperationsPage() {
             Paid checkouts that stalled before activation, private sessions waiting on scheduling, and the Shift Reset roster.
           </p>
         </div>
+
+        <section className="mb-8">
+          <div className={`border rounded-sm p-4 ${legalReady ? "border-jcf-success/30 bg-jcf-success/5" : "border-jcf-danger/30 bg-jcf-danger/5"}`}>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display uppercase tracking-wide">Legal Launch Gate</h2>
+              <span className={`text-xs uppercase tracking-widest ${legalReady ? "text-jcf-success" : "text-jcf-danger"}`}>
+                {legalReady ? "Ready" : "Blocked"}
+              </span>
+            </div>
+            {legalReady ? (
+              <p className="text-jcf-gray text-sm mt-2">
+                Required legal document versions are active and offer-level acceptance requirements are enabled.
+              </p>
+            ) : (
+              <>
+                <p className="text-jcf-gray text-sm mt-2">
+                  Agreement acceptance infrastructure is installed, but reviewed legal language has not been activated.
+                </p>
+                <div className="text-jcf-gray text-xs mt-3">
+                  {draftLegal.length} document{draftLegal.length === 1 ? "" : "s"} still draft · {enabledLegal.length}/{legalRequirementRows.length} offer requirements enabled
+                </div>
+                <p className="text-jcf-danger text-xs mt-2">
+                  Do not enable pre-checkout enforcement until the final terms, cancellation/refund language, waiver, and applicable Ohio provisions are reviewed.
+                </p>
+              </>
+            )}
+          </div>
+        </section>
 
         <section className="mb-8">
           <h2 className="font-display uppercase tracking-wide mb-3">Coach Sales Links</h2>
