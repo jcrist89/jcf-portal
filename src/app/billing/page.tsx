@@ -23,9 +23,9 @@ export default async function BillingPage() {
     <div className="pb-24">
       <ClientNav />
       <main className="px-4 pt-6 max-w-md mx-auto">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-6">Billing</h1>
+        <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-6">Billing</h1>
 
-        <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-4">
+        <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-4 mb-4">
           <div className="text-jcf-gray text-xs uppercase tracking-widest mb-1">Current Plan</div>
           <div className="text-white font-display uppercase mb-3">
             {TIER_LABELS[profile?.tier ?? "free"] ?? profile?.tier}
@@ -51,20 +51,20 @@ export default async function BillingPage() {
         {profile?.stripe_customer_id ? (
           <BillingPanel hasStripeCustomer />
         ) : profile?.tier !== "free" ? (
-          <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+          <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-4">
             <p className="text-jcf-gray text-sm">
               You have complimentary {TIER_LABELS[profile?.tier ?? ""] ?? profile?.tier} access — no billing on
               file for this plan.
             </p>
           </div>
         ) : (
-          <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+          <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-4">
             <p className="text-jcf-gray text-sm mb-3">
               You&apos;re on the free plan. Upgrade for full program editing or direct coaching.
             </p>
             <Link
               href="/pricing"
-              className="inline-block bg-jcf-gold text-jcf-black uppercase text-sm font-semibold px-4 py-2 rounded-sm"
+              className="inline-block bg-jcf-gold text-jcf-black uppercase text-sm font-semibold px-4 py-2 rounded-2xl"
             >
               View Plans
             </Link>
