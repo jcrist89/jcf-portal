@@ -128,7 +128,7 @@ export default async function PricingPage() {
             </p>
             <a
               href="/start?interest=remote"
-              className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-jcf-blue text-white px-4 py-3 rounded-[24px] hover:opacity-90"
+              className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-jcf-blue text-jcf-black px-4 py-3 rounded-[24px] hover:opacity-90"
             >
               Ask About Remote Coaching
             </a>
