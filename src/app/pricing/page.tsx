@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { PublicHeader } from "@/components/PublicHeader";
 
 const LOCAL_CHECKOUT = "/go/local-pif";
 const PRIVATE_CHECKOUT = "/go/private";
 const RESET_CHECKOUT = "/go/reset";
-const INSTAGRAM = "https://www.instagram.com/joncristfit/";
 
 const offers = [
   {
@@ -92,9 +90,7 @@ export default function PricingPage() {
                 </a>
                 {offer.featured && (
                   <a
-                    href={INSTAGRAM}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/start?interest=local-3pay"
                     className="text-center uppercase tracking-widest text-xs font-semibold border border-[#2563eb] text-white px-4 py-3 rounded-sm mt-2 hover:bg-[#2563eb]/10"
                   >
                     Ask About 3 × $150
@@ -113,9 +109,7 @@ export default function PricingPage() {
               during the coaching conversation so the offer matches what you actually need.
             </p>
             <a
-              href={INSTAGRAM}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/start?interest=remote"
               className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#2563eb] text-white px-4 py-3 rounded-sm hover:opacity-90"
             >
               Ask About Remote Coaching

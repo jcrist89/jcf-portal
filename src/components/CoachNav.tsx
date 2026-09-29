@@ -7,6 +7,7 @@ const links = [
   { href: "/coach", label: "Who Needs Me" },
   { href: "/coach/operations", label: "Operations" },
   { href: "/coach/acquisition", label: "Acquisition" },
+  { href: "/coach/leads", label: "Leads" },
   { href: "/coach/checkins", label: "Check-Ins" },
   { href: "/coach/clients", label: "All Clients" },
   { href: "/coach/templates", label: "Templates" },
