@@ -32,7 +32,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={submit} className="bg-jcf-panel border border-white/10 rounded-sm p-4 flex flex-col gap-3">
+    <form onSubmit={submit} className="bg-jcf-panel/80 border border-white/10 rounded-2xl p-5 shadow-[0_16px_45px_rgba(0,0,0,0.16)] flex flex-col gap-3">
       <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-1">Change Password</h3>
       <Input
         label="New Password"
