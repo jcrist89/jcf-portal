@@ -6,13 +6,13 @@ const config: Config = {
     extend: {
       colors: {
         jcf: {
-          black: "#0a0a0a",
-          charcoal: "#151515",
-          panel: "#1c1c1c",
-          gold: "#D9A125",
-          goldLight: "#F0C05A",
-          white: "#F5F5F5",
-          gray: "#8A8A8A",
+          black: "#07111C",
+          charcoal: "#0B1724",
+          panel: "#0F2031",
+          gold: "#FF6B1A",\n          orange: "#FF6B1A",
+          goldLight: "#FF8544",\n          orangeLight: "#FF8544",\n          blue: "#59A9DC",
+          white: "#F4F7FB",
+          gray: "#8FA5BE",
           danger: "#C1432E",
           success: "#3F8F5F",
         },
@@ -23,7 +23,7 @@ const config: Config = {
       },
       backgroundImage: {
         "diagonal-fade":
-          "linear-gradient(135deg, rgba(217,161,37,0.15) 0%, rgba(10,10,10,0) 60%)",
+          "linear-gradient(135deg, rgba(255,107,26,0.13) 0%, rgba(7,17,28,0) 58%), radial-gradient(circle at 82% 18%, rgba(89,169,220,0.10), transparent 36%)",
       },
       clipPath: {
         angled: "polygon(0 0, 100% 0, 100% 85%, 0% 100%)",
