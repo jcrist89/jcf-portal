@@ -141,7 +141,7 @@ export function TodayView({
         <section className="mb-6 rounded-[20px] border border-white/10 bg-jcf-panel/80 p-4 shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
           <div className="mb-3 flex items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-jcf-gray">Today's targets</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-jcf-gray">Today&apos;s targets</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="font-display text-3xl text-jcf-gold">{nutritionTargets.calories}</span>
                 <span className="text-xs text-jcf-gray">calories</span>
