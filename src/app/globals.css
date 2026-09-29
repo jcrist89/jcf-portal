@@ -27,11 +27,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   top: 1rem;
 }
 
-::selection {
-  background-color: #FF6B1A;
-  color: #07111C;
-}
-
 .jcf-diagonal {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 92%);
 }
