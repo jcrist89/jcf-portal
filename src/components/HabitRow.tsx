@@ -62,7 +62,7 @@ export function HabitRow({
   const count = habitCount(habits);
 
   return (
-    <section aria-labelledby="daily-four" className="mb-6 rounded-[20px] border border-white/10 bg-jcf-panel/55 p-4 shadow-[0_16px_45px_rgba(0,0,0,0.14)]">
+    <section aria-labelledby="daily-four" className="mb-6 rounded-[20px] border border-white/10 bg-jcf-panel/50 p-4 shadow-[0_16px_45px_rgba(0,0,0,0.14)]">
       <div className="flex items-baseline justify-between mb-2">
         <h2 id="daily-four" className="text-[10px] uppercase tracking-[0.2em] text-jcf-gray">
           Daily Four
