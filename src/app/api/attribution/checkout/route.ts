@@ -68,6 +68,89 @@ export async function GET(request: NextRequest) {
         referrer: last?.referrer ?? null,
       });
     }
+
+    // If this buyer already entered the sales pipeline, close that loop
+    // automatically. Prefer the first-party visitor id; fall back to checkout
+    // email for DM/manual leads that were logged before a tracked link existed.
+    if (offerCode) {
+      const validVisitor =
+        visitorId && /^[0-9a-f-]{36}$/i.test(visitorId) ? visitorId : null;
+      const checkoutEmail = String(
+        session.customer_details?.email ?? session.customer_email ?? "",
+      ).trim().toLowerCase();
+
+      let matchedLead: any = null;
+      if (validVisitor) {
+        const { data } = await admin
+          .from("jcf_leads")
+          .select("*")
+          .eq("visitor_id", validVisitor)
+          .not("status", "in", "(won,lost)")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        matchedLead = data;
+      }
+
+      if (!matchedLead && checkoutEmail) {
+        const { data } = await admin
+          .from("jcf_leads")
+          .select("*")
+          .ilike("email", checkoutEmail)
+          .not("status", "in", "(won,lost)")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        matchedLead = data;
+      }
+
+      if (matchedLead) {
+        const { data: offer } = await admin
+          .from("offers")
+          .select("amount_cents,installments")
+          .eq("code", offerCode)
+          .maybeSingle();
+
+        const contracted = offer
+          ? Number(offer.amount_cents) * Math.max(1, Number(offer.installments ?? 1))
+          : Number(session.amount_total ?? 0);
+        const now = new Date().toISOString();
+
+        const { error: leadError } = await admin
+          .from("jcf_leads")
+          .update({
+            status: "won",
+            offer_code: offerCode,
+            contracted_value_cents: contracted,
+            purchase_session_id: sessionId,
+            qualified_at: matchedLead.qualified_at ?? now,
+            won_at: matchedLead.won_at ?? now,
+            lost_at: null,
+            lost_reason: null,
+            next_action: null,
+            next_action_due: null,
+            updated_at: now,
+          })
+          .eq("id", matchedLead.id);
+
+        if (leadError) {
+          await logEvent(admin, {
+            level: "warning",
+            source: "lead.checkout_match",
+            message: "Paid checkout could not update the matched lead",
+            context: { leadId: matchedLead.id, sessionId, error: leadError.message },
+          });
+        } else {
+          await admin.from("jcf_lead_events").insert({
+            lead_id: matchedLead.id,
+            event_type: "checkout_matched",
+            from_status: matchedLead.status,
+            to_status: "won",
+            note: `Automatically matched paid ${offerCode} checkout.`,
+          });
+        }
+      }
+    }
   } catch (error) {
     await logEvent(admin, {
       level: "warning",
