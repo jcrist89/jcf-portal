@@ -27,5 +27,10 @@ export async function loadOfferEntitlements(
     .maybeSingle();
 
   if (error || !data?.entitlements || typeof data.entitlements !== "object") return {};
-  return data.entitlements as OfferEntitlements;
+  const raw = data.entitlements as Record<string, unknown>;
+  return {
+    checkins: raw.checkins === true,
+    coaching: raw.coaching === true,
+    messaging: raw.messaging === true,
+  };
 }
