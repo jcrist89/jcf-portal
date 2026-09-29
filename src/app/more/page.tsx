@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClientNav } from "@/components/ClientNav";
 import { requireUser } from "@/lib/auth/require";
+import { SignOutButton } from "@/components/SignOutButton";
 
 const items = [
   { href: "/nutrition", eyebrow: "Fuel", title: "Nutrition", copy: "Log food, save repeatable meals, and keep your targets visible." },
@@ -39,6 +40,7 @@ export default async function MorePage() {
             </Link>
           ))}
         </div>
+        <div className="mt-6 sm:hidden"><SignOutButton /></div>
       </main>
     </div>
   );
