@@ -1,6 +1,7 @@
 // A minimal, in-memory, chainable fake of the Supabase query builder — just
-// enough of the surface area (select/insert/update/upsert/delete/eq/in/order/
-// maybeSingle/single/count) that this repo's route handlers actually use.
+// enough of the surface area (select/insert/update/upsert/delete/eq/neq/is/in/
+// not/lt/lte/gt/gte/order/maybeSingle/single/count) that this repo's route handlers
+// actually use.
 // Not a general PostgREST emulator: it doesn't enforce RLS, foreign keys, or
 // check constraints. Tests that need to prove RLS-level access control (e.g.
 // cross-client row visibility) test the app-level guard functions directly
@@ -72,9 +73,32 @@ class FakeQueryBuilder {
     return this;
   }
 
+  is(col: string, val: unknown) {
+    this.filters.push((r) => r[col] === val);
+    return this;
+  }
+
   in(col: string, vals: unknown[]) {
     this.filters.push((r) => vals.includes(r[col]));
     return this;
+  }
+
+  not(col: string, operator: string, val: unknown) {
+    if (operator === "in") {
+      const raw = String(val ?? "").trim();
+      const values = raw
+        .replace(/^\(/, "")
+        .replace(/\)$/, "")
+        .split(",")
+        .map((item) => item.trim().replace(/^"|"$/g, ""));
+      this.filters.push((r) => !values.includes(String(r[col])));
+      return this;
+    }
+    if (operator === "eq" || operator === "is") {
+      this.filters.push((r) => r[col] !== val);
+      return this;
+    }
+    throw new Error("FakeSupabase: unsupported not() operator " + operator);
   }
 
   lt(col: string, val: string | number) {
@@ -82,8 +106,18 @@ class FakeQueryBuilder {
     return this;
   }
 
+  lte(col: string, val: string | number) {
+    this.filters.push((r) => r[col] <= val);
+    return this;
+  }
+
   gt(col: string, val: string | number) {
     this.filters.push((r) => r[col] > val);
+    return this;
+  }
+
+  gte(col: string, val: string | number) {
+    this.filters.push((r) => r[col] >= val);
     return this;
   }
 
