@@ -7,7 +7,7 @@ html, body {
   color: #f5f5f5;
 }
 
-a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid #FF6B1A;
   outline-offset: 3px;
 }
@@ -86,4 +86,14 @@ a, button, input, textarea, select {
 
 .jcf-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255,107,26,.72);
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
