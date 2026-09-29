@@ -8,6 +8,7 @@ const OFFERS = [
   { value: "remote-pif", label: "Remote Coaching — $997 PIF" },
   { value: "private", label: "Private Training — $45" },
   { value: "reset", label: "Shift Reset — $27" },
+  { value: "inquiry", label: "Coaching Inquiry Form" },
 ] as const;
 
 export function AttributionLinkBuilder() {
@@ -24,7 +25,8 @@ export function AttributionLinkBuilder() {
     if (medium.trim()) params.set("utm_medium", medium.trim());
     if (campaign.trim()) params.set("utm_campaign", campaign.trim());
     if (content.trim()) params.set("utm_content", content.trim());
-    return `/go/${offer}?${params.toString()}`;
+    const base = offer === "inquiry" ? "/start" : `/go/${offer}`;
+    return `${base}?${params.toString()}`;
   }, [offer, source, medium, campaign, content]);
 
   async function copy() {
