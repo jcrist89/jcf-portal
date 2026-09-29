@@ -9,14 +9,14 @@ export function PublicHeader() {
       </Link>
       <nav className="flex items-center gap-4 sm:gap-6">
         <Link href="/pricing" className="text-xs uppercase tracking-widest text-jcf-gray hover:text-white">
-          Pricing
+          Coaching
         </Link>
         <Link href="/login" className="text-xs uppercase tracking-widest text-jcf-gray hover:text-white">
           Sign In
         </Link>
         <Link
-          href="/signup"
-          className="text-xs uppercase tracking-widest bg-jcf-gold text-jcf-black font-semibold px-3 py-2 rounded-sm hover:bg-jcf-goldLight"
+          href="/pricing"
+          className="text-xs uppercase tracking-widest bg-[#f97316] text-black font-semibold px-3 py-2 rounded-sm hover:opacity-90"
         >
           Get Started
         </Link>
