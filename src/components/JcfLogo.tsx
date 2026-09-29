@@ -1,42 +1,33 @@
-import Image from "next/image";
+const MARK_SIZES = {
+  sm: "text-[28px] leading-[0.72]",
+  md: "text-[40px] leading-[0.72]",
+  lg: "text-[64px] leading-[0.72]",
+} as const;
 
-// Source asset ratios (width / height):
-//   logo-mark.png     631 / 217  ≈ 2.908
-//   logo-wordmark.png 1450 / 227 ≈ 6.388
-const MARK_RATIO = 631 / 217;
-const WORDMARK_RATIO = 1450 / 227;
-
-const MARK_HEIGHTS = { sm: 28, md: 40, lg: 64 } as const;
-
+/** The orange C is the center of the identity, framed by the blue J and F. */
 export function JcfLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const h = MARK_HEIGHTS[size];
   return (
-    <Image
-      src="/logo-mark.png"
-      alt="JCF"
-      height={h}
-      width={Math.round(h * MARK_RATIO)}
-      priority
-      className="select-none"
-    />
+    <span
+      aria-label="Jon Crist Fit"
+      className={`inline-flex origin-left -skew-x-[7deg] select-none font-display font-normal tracking-[-0.12em] ${MARK_SIZES[size]}`}
+    >
+      <span className="text-jcf-blue">J</span>
+      <span className="text-jcf-orange">C</span>
+      <span className="text-jcf-blue">F</span>
+    </span>
   );
 }
 
 export function JcfWordmark() {
-  const h = 40;
   return (
-    <div className="flex flex-col">
-      <Image
-        src="/logo-wordmark.png"
-        alt="Jon Crist Fit"
-        height={h}
-        width={Math.round(h * WORDMARK_RATIO)}
-        priority
-        className="select-none"
-      />
-      <span className="text-[10px] uppercase tracking-[0.25em] text-jcf-gray mt-1">
-        Simple Training // Consistent Effort
+    <span className="inline-flex items-center gap-3 select-none">
+      <JcfLogo size="md" />
+      <span className="flex flex-col border-l border-jcf-blue/30 pl-3 leading-none">
+        <span className="font-display text-[19px] tracking-[0.075em] text-jcf-white">JON CRIST FIT</span>
+        <span className="mt-1 text-[8px] font-semibold uppercase tracking-[0.2em] text-jcf-gray">
+          Simple Training // Consistent Effort
+        </span>
       </span>
-    </div>
+    </span>
   );
 }
