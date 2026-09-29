@@ -44,7 +44,7 @@ export default function LoginPage() {
 
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm bg-jcf-panel/85 border border-white/10 rounded-[24px] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.28)] relative z-10"
+        className="w-full max-w-sm bg-jcf-panel/80 border border-white/10 rounded-[24px] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.28)] relative z-10"
       >
         <h1 className="font-display uppercase text-3xl leading-none tracking-wide mb-2">Sign In</h1>
         <p className="text-jcf-gray text-sm mb-6">Enter your email and password.</p>
