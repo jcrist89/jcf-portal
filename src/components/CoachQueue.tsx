@@ -57,7 +57,7 @@ export function CoachQueue({
 
   if (initialQueue.length === 0) {
     return (
-      <div className="bg-jcf-panel border border-jcf-success/30 rounded-sm p-6 text-center">
+      <div className="bg-jcf-panel border border-jcf-success/30 rounded-2xl p-6 text-center">
         <p className="font-display uppercase tracking-wide text-jcf-success mb-1">Nobody needs you right now</p>
         <p className="text-jcf-gray text-sm">
           All {clientCount} active {clientCount === 1 ? "client is" : "clients are"} on track.
@@ -79,7 +79,7 @@ export function CoachQueue({
         {initialQueue.map((entry) => (
           <article
             key={entry.profileId}
-            className="bg-jcf-panel border border-white/10 rounded-sm overflow-hidden flex"
+            className="bg-jcf-panel/80 border border-white/10 rounded-2xl overflow-hidden flex shadow-[0_16px_45px_rgba(0,0,0,0.16)]"
           >
             <div className={`w-1 shrink-0 ${SEVERITY_STYLES[entry.topSeverity].rail}`} aria-hidden="true" />
             <div className="flex-1 p-4 min-w-0">
@@ -91,7 +91,7 @@ export function CoachQueue({
                   {entry.name}
                 </Link>
                 <span
-                  className={`shrink-0 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm border ${
+                  className={`shrink-0 text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full border ${
                     SEVERITY_STYLES[entry.topSeverity].chip
                   }`}
                 >
