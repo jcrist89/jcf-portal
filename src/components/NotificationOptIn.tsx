@@ -82,7 +82,7 @@ export function NotificationOptIn({ role }: { role: "coach" | "client" }) {
       : "Get a push when Jon sends you a note, or when your streak's at risk.";
 
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl p-5 shadow-[0_16px_45px_rgba(0,0,0,0.16)]">
       <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-2">Notifications</h3>
       {permission === "denied" ? (
         <p className="text-jcf-gray text-xs">
