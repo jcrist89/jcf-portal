@@ -12,7 +12,7 @@ export function Button({
     primary: "bg-jcf-gold text-jcf-black hover:bg-jcf-goldLight font-semibold",
     secondary: "bg-jcf-panel text-white border border-white/15 hover:border-jcf-gold/60 hover:bg-jcf-panel/80",
     ghost: "bg-transparent text-jcf-gray hover:text-white",
-    danger: "bg-jcf-danger/90 text-white hover:bg-jcf-danger",
+    danger: "bg-jcf-danger text-jcf-black hover:brightness-105",
   };
   return (
     <button
