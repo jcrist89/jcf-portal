@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json({ profile });
 }
 
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const ctx = await supabaseForRequest();
   if (!ctx || ctx.session.role !== "coach") {
@@ -91,6 +91,31 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const admin = supabaseAdmin();
   const targetCheck = await requireExistingClient(admin, params.id);
   if (targetCheck) return targetCheck;
+
+  const body = typeof req.json === "function" ? await req.json().catch(() => null) : null;
+  if (body?.permanently === true) {
+    // This is deliberately a hard delete. It removes the Supabase Auth user first,
+    // which revokes refresh sessions and prevents the account from signing in again.
+    // The profile is not FK-linked to auth.users in this legacy schema, so delete it
+    // explicitly afterwards; its dependent coaching data is cascade-linked.
+    const { error: authError } = await admin.auth.admin.deleteUser(params.id, false);
+    if (authError) {
+      return NextResponse.json(
+        { error: `Could not delete the client's sign-in account: ${authError.message}` },
+        { status: 500 },
+      );
+    }
+
+    const { error: profileError } = await admin.from("profiles").delete().eq("id", params.id);
+    if (profileError) {
+      return NextResponse.json(
+        { error: `The sign-in account was removed, but portal data could not be deleted: ${profileError.message}` },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, permanentlyDeleted: true });
+  }
 
   const { error } = await admin.from("profiles").update({ is_active: false }).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

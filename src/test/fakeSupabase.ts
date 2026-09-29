@@ -212,6 +212,15 @@ class FakeQueryBuilder {
 
 export class FakeSupabase {
   tables: Record<string, Row[]> = {};
+  deletedAuthUsers: string[] = [];
+  auth = {
+    admin: {
+      deleteUser: async (userId: string, _shouldSoftDelete?: boolean) => {
+        this.deletedAuthUsers.push(userId);
+        return { data: { user: null }, error: null };
+      },
+    },
+  };
 
   /** Registered rpc() responses, keyed by function name. See stubRpc. */
   private rpcHandlers: Record<string, (args: Row) => unknown> = {};

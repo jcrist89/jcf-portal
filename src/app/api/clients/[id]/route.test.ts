@@ -80,6 +80,17 @@ describe("PATCH/DELETE /api/clients/[id]", () => {
     expect(db.tables.profiles.find((p) => p.id === "client-1")!.is_active).toBe(false);
   });
 
+  it("permanently deletes a client profile and sign-in account only when explicitly requested", async () => {
+    const { DELETE } = await import("./route");
+    const res = await DELETE(fakeRequest({ permanently: true }), {
+      params: Promise.resolve({ id: "client-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(db.deletedAuthUsers).toEqual(["client-1"]);
+    expect(db.tables.profiles.find((p) => p.id === "client-1")).toBeUndefined();
+  });
+
   it("blocks a non-coach from editing any client", async () => {
     mockSupabaseForRequest.mockResolvedValue({
       client: db,
