@@ -8,6 +8,7 @@ import { loadSchedule, loadSessionExercises, type SessionExerciseSummary } from 
 import { EMPTY_HABITS, type HabitState } from "@/components/HabitRow";
 import { CONSISTENCY_WINDOW_DAYS } from "@/domain/consistency";
 import type { Profile } from "@/lib/types";
+import { loadOfferEntitlements } from "@/server/offerEntitlements";
 
 export interface TodayData {
   position: SchedulePosition;
@@ -67,6 +68,8 @@ export async function loadToday(
 
   const days = (habitRows ?? []) as HabitDay[];
   const engagement = (engagementRow as Engagement | null) ?? null;
+  const entitlements = await loadOfferEntitlements(client, engagement?.offer_code);
+  const weeklyCheckins = entitlements.checkins === true;
   const asDate = parseISO(`${today}T12:00:00Z`);
 
   const position = schedulePosition(schedule.assignment, schedule.sessions, today);
@@ -76,14 +79,16 @@ export async function loadToday(
   const checkins = (checkinRows ?? []) as Checkin[];
   // Derived from the engagement, not read off the newest row — the week that matters
   // most is the one with no row at all, because nobody submitted it.
-  const checkinDueOn = currentCheckinDate(engagement, today);
-  const checkin = checkinState(
-    engagement,
-    checkins.find((c) => c.due_local_date === checkinDueOn) ?? null,
-    today,
-    asDate.toISOString(),
-  );
-  const checkinDue = nextCheckinDue(engagement, asDate);
+  const checkinDueOn = weeklyCheckins ? currentCheckinDate(engagement, today) : null;
+  const checkin = weeklyCheckins
+    ? checkinState(
+        engagement,
+        checkins.find((c) => c.due_local_date === checkinDueOn) ?? null,
+        today,
+        asDate.toISOString(),
+      )
+    : null;
+  const checkinDue = weeklyCheckins ? nextCheckinDue(engagement, asDate) : null;
 
   const todayRow = days.find((d) => d.local_date === today);
   const habits: HabitState = todayRow
@@ -96,7 +101,7 @@ export async function loadToday(
     habits,
     streak: consistency(days, today, engagement?.starts_on ?? schedule.assignment?.starts_on),
     daysToCheckin: checkinDue ? differenceInCalendarDays(checkinDue, asDate) : null,
-    checkinOverdue: checkin.status === "overdue" || checkin.status === "due",
+    checkinOverdue: checkin?.status === "overdue" || checkin?.status === "due",
     unread: unread ?? 0,
     // The engagement is the coaching container, so it names the week when there is one.
     // An open-ended comp arrangement has no total, so it falls back to the training block.
