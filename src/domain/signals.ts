@@ -194,7 +194,7 @@ export function signalsFor(
     engagement != null &&
     (engagement.status === "pending" || engagement.status === "active" || engagement.status === "past_due");
 
-  if (liveEngagement && !snapshot.onboarded) {
+  if (engagement && liveEngagement && !snapshot.onboarded) {
     out.push({
       kind: "intake_incomplete",
       severity: daysInEngagement >= 1 ? "critical" : "high",
@@ -207,7 +207,7 @@ export function signalsFor(
       action: "Follow up on intake",
       since: engagement.starts_on,
     });
-  } else if (liveEngagement && snapshot.onboarded && !snapshot.hasAssignment && daysInEngagement >= 0) {
+  } else if (engagement && liveEngagement && snapshot.onboarded && !snapshot.hasAssignment && daysInEngagement >= 0) {
     out.push({
       kind: "program_setup_due",
       severity: daysInEngagement >= 2 ? "critical" : "high",
@@ -221,6 +221,7 @@ export function signalsFor(
 
   // ── local 4- and 8-week service reviews ───────────────────────────────────
   if (
+    engagement &&
     liveEngagement &&
     snapshot.onboarded &&
     (engagement.offer_code === "JCF_LOCAL_12W_PIF" || engagement.offer_code === "JCF_LOCAL_12W_3PAY")
