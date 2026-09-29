@@ -55,7 +55,7 @@ export default async function LandingPage() {
                 </Link>
                 <Link
                   href="/login"
-                  className="rounded-xl border border-white/12 bg-jcf-panel/60 px-6 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:border-jcf-blue/35 hover:bg-jcf-panel"
+                  className="rounded-xl border border-white/10 bg-jcf-panel/60 px-6 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:border-jcf-blue/35 hover:bg-jcf-panel"
                 >
                   Client Sign In
                 </Link>
@@ -77,7 +77,7 @@ export default async function LandingPage() {
                   ["Nutrition", "Practical targets you can actually repeat"],
                   ["Accountability", "A coach who sees the data and adjusts"],
                 ].map(([title, copy], index) => (
-                  <div key={title} className="rounded-2xl border border-white/8 bg-jcf-black/30 p-4">
+                  <div key={title} className="rounded-2xl border border-white/10 bg-jcf-black/30 p-4">
                     <div className="flex items-start gap-3">
                       <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${index === 1 ? "bg-jcf-blue" : "bg-jcf-gold"}`} />
                       <div>
@@ -92,7 +92,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-white/8 bg-jcf-charcoal/50 px-6 py-16 sm:py-20">
+        <section className="border-y border-white/10 bg-jcf-charcoal/50 px-6 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 max-w-2xl">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-jcf-gold">How this is different</p>
