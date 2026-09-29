@@ -11,7 +11,7 @@ export default async function CoachHomePage() {
   return (
     <div className="pb-24 md:pb-10">
       <CoachNav />
-      <main className="mx-auto max-w-4xl px-4 pt-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-4 pt-6">
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jcf-gray">Coach dashboard</p>
