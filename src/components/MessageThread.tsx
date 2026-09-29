@@ -114,8 +114,8 @@ export function MessageThread({
           return (
             <div key={n.id} className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] rounded-sm px-3 py-2 text-sm ${
-                  isSelf ? "bg-jcf-gold text-jcf-black" : "bg-jcf-panel border border-white/10 text-white"
+                className={`max-w-[84%] rounded-2xl px-4 py-2.5 text-sm shadow-[0_10px_30px_rgba(0,0,0,0.14)] ${
+                  isSelf ? "bg-jcf-gold text-jcf-black rounded-br-md" : "bg-jcf-panel/90 border border-white/10 text-white rounded-bl-md"
                 }`}
               >
                 <div>{n.message}</div>
@@ -128,13 +128,13 @@ export function MessageThread({
         })}
       </div>
 
-      <div className="flex gap-2 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] sticky bottom-0 bg-jcf-black">
+      <div className="sticky bottom-0 flex gap-2 border-t border-white/10 bg-jcf-black/92 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Write a message..."
-          className="flex-1 bg-jcf-panel border border-white/15 rounded-sm px-3 py-2.5 text-sm text-white focus:outline-none focus:border-jcf-gold"
+          className="flex-1 bg-jcf-panel border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-jcf-gold"
         />
         <Button onClick={send} disabled={sending || !message.trim()}>Send</Button>
       </div>
