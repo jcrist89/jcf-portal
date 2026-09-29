@@ -76,14 +76,14 @@ export function TodayView({
                   )}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-jcf-black/35 px-3 py-2 text-center">
+              <div className="rounded-2xl border border-white/10 bg-jcf-black/30 px-3 py-2 text-center">
                 <div className="font-display text-xl text-white">{exercises.length}</div>
                 <div className="text-[8px] font-semibold uppercase tracking-wider text-jcf-gray">Moves</div>
               </div>
             </div>
 
             {exercises.length > 0 && (
-              <div className="mb-5 rounded-2xl border border-white/8 bg-jcf-black/25 px-4 py-3">
+              <div className="mb-5 rounded-2xl border border-white/10 bg-jcf-black/20 px-4 py-3">
                 <ul className="space-y-1.5 text-sm text-jcf-gray">
                   {exercises.slice(0, 3).map((ex, i) => (
                     <li key={i} className="flex items-center justify-between gap-3">
@@ -99,7 +99,7 @@ export function TodayView({
             )}
 
             {viewOnly ? (
-              <span className="block w-full cursor-not-allowed rounded-xl bg-white/8 px-5 py-3 text-center text-sm font-semibold uppercase tracking-wide text-jcf-gray">
+              <span className="block w-full cursor-not-allowed rounded-xl bg-white/10 px-5 py-3 text-center text-sm font-semibold uppercase tracking-wide text-jcf-gray">
                 Start workout unavailable in preview
               </span>
             ) : (
@@ -131,7 +131,7 @@ export function TodayView({
       </section>
 
       {position.sessionsBehind > 0 && (
-        <div className="mb-6 rounded-2xl border border-jcf-gold/30 bg-jcf-gold/8 p-4 text-sm text-jcf-gold">
+        <div className="mb-6 rounded-2xl border border-jcf-gold/30 bg-jcf-gold/10 p-4 text-sm text-jcf-gold">
           {viewOnly ? "They're" : "You're"} {position.sessionsBehind} session
           {position.sessionsBehind === 1 ? "" : "s"} behind. Nothing is lost. Pick up where you left off.
         </div>
@@ -170,18 +170,18 @@ export function TodayView({
 
       <HabitRow initial={habits} localDate={localDate} readOnly={viewOnly} />
 
-      <section className="grid grid-cols-3 gap-2 rounded-[20px] border border-white/10 bg-jcf-panel/55 p-3">
-        <div className="rounded-xl bg-jcf-black/25 px-2 py-3 text-center">
+      <section className="grid grid-cols-3 gap-2 rounded-[20px] border border-white/10 bg-jcf-panel/50 p-3">
+        <div className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
           <div className="font-display text-2xl text-jcf-gold">{streak.daysHit}</div>
           <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">of {streak.windowDays} days</div>
         </div>
-        <Link href={viewOnly ? "#" : "/checkin"} className="rounded-xl bg-jcf-black/25 px-2 py-3 text-center">
+        <Link href={viewOnly ? "#" : "/checkin"} className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
           <div className={`font-display text-2xl ${checkinOverdue ? "text-jcf-danger" : "text-white"}`}>
             {checkinOverdue ? "Due" : daysToCheckin == null ? "—" : daysToCheckin === 0 ? "Today" : `${daysToCheckin}d`}
           </div>
           <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">Check-in</div>
         </Link>
-        <Link href={viewOnly ? "#" : "/messages"} className="rounded-xl bg-jcf-black/25 px-2 py-3 text-center">
+        <Link href={viewOnly ? "#" : "/messages"} className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
           <div className={`font-display text-2xl ${unread ? "text-jcf-blue" : "text-white"}`}>{unread}</div>
           <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">Messages</div>
         </Link>
