@@ -68,9 +68,15 @@ export default async function CheckinPage() {
           <p className="text-jcf-gray text-sm">
             Your check-in schedule starts once Jon sets up your coaching block.
           </p>
+        ) : !weeklyCheckins ? (
+          <div className="bg-jcf-panel border border-white/10 rounded-sm p-5">
+            <p className="text-jcf-gray text-sm">
+              Weekly check-ins are not part of your current coaching package. Your scheduled progress reviews and program updates still happen on the cadence included with your offer.
+            </p>
+          </div>
         ) : (
           <>
-            {state.status === "overdue" && (
+            {state?.status === "overdue" && (
               <div className="rounded-sm p-3 mb-4 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
                 This one&apos;s {state?.daysOverdue} day{state?.daysOverdue === 1 ? "" : "s"} late. Two minutes and
                 it&apos;s done.
