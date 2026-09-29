@@ -57,7 +57,7 @@ export default async function ProgramPage() {
   return (
     <div className="pb-24">
       <ClientNav />
-      <main className="px-4 pt-6 max-w-2xl mx-auto">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-2xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-1">
           <h1 className="font-display text-4xl uppercase leading-none tracking-wide">My Program</h1>
           {p && user.tier !== "free" && (
