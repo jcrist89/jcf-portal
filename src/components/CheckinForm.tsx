@@ -104,7 +104,7 @@ export function CheckinForm({
         <DraftStatus status={status} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2">
         {NUMBER_FIELDS.map((f) => (
           <label key={f.key} className="flex flex-col gap-1">
             <span className="text-[10px] uppercase tracking-wider text-jcf-gray">
@@ -118,7 +118,7 @@ export function CheckinForm({
               value={fields[f.key] ?? ""}
               onChange={(e) => set(f.key, e.target.value)}
               placeholder={f.hint}
-              className="bg-jcf-charcoal border border-white/15 rounded-sm px-3 py-2 text-white focus:border-jcf-gold outline-none"
+              className="bg-jcf-charcoal border border-white/15 rounded-xl px-3 py-3 text-white focus:border-jcf-gold outline-none"
             />
           </label>
         ))}
@@ -136,7 +136,7 @@ export function CheckinForm({
               rows={2}
               value={fields[f.key] ?? ""}
               onChange={(e) => set(f.key, e.target.value)}
-              className="bg-jcf-charcoal border border-white/15 rounded-sm px-3 py-2 text-white focus:border-jcf-gold outline-none resize-y"
+              className="bg-jcf-charcoal border border-white/15 rounded-xl px-3 py-3 text-white focus:border-jcf-gold outline-none resize-y"
             />
           </label>
         ))}
