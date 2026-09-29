@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { JcfWordmark } from "./JcfLogo";
+import { JcfIcon, type JcfIconName } from "./JcfIcon";
 
-type NavIcon = "home" | "clients" | "checkin" | "leads" | "more";
+type NavIcon = Extract<JcfIconName, "home" | "clients" | "checkin" | "leads" | "more">;
 
 const links: Array<{ href: string; label: string; icon: NavIcon }> = [
   { href: "/coach", label: "Today", icon: "home" },
@@ -12,14 +13,6 @@ const links: Array<{ href: string; label: string; icon: NavIcon }> = [
   { href: "/coach/leads", label: "Leads", icon: "leads" },
   { href: "/coach/more", label: "More", icon: "more" },
 ];
-
-function NavIcon({ name }: { name: NavIcon }) {
-  if (name === "home") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9l8-6 8 6v11h-5v-6H9v6Z" /></svg>;
-  if (name === "clients") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M16 6.5a2.5 2.5 0 0 1 0 5M16.5 14c2.5.3 3.8 2 4 5" /></svg>;
-  if (name === "checkin") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5Z" /><path d="m8 12 2.5 2.5L16 9" /></svg>;
-  if (name === "leads") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4Z" /><path d="M7 9h10M7 13h6" /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>;
-}
 
 export function CoachNav() {
   const pathname = usePathname();
@@ -78,7 +71,7 @@ export function CoachNav() {
               }`}
             >
               <span className="block h-5 w-5 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-linecap-round [&>svg]:stroke-linejoin-round">
-                <NavIcon name={link.icon} />
+                <JcfIcon name={link.icon} />
               </span>
               <span className="truncate">{link.label}</span>
             </Link>
