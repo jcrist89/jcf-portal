@@ -61,7 +61,7 @@ export default async function CheckinReviewPage() {
   return (
     <div>
       <CoachNav />
-      <main className="mx-auto max-w-3xl px-4 pt-6 pb-24 md:pb-12">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 pt-6 pb-24 md:pb-12">
         <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-1">Check-Ins</h1>
         <p className="text-jcf-gray text-sm mb-6">
           {items.length === 0
