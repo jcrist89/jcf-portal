@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { JcfLogo } from "./JcfLogo";
+import { JcfIcon, type JcfIconName } from "./JcfIcon";
 import { getBrowserClient } from "@/lib/supabase/browser";
 
-type NavIcon = "home" | "train" | "progress" | "coach" | "more";
+type NavIcon = Extract<JcfIconName, "home" | "train" | "progress" | "coach" | "more">;
 
 const primaryLinks: Array<{ href: string; label: string; icon: NavIcon }> = [
   { href: "/dashboard", label: "Today", icon: "home" },
@@ -14,22 +15,6 @@ const primaryLinks: Array<{ href: string; label: string; icon: NavIcon }> = [
   { href: "/messages", label: "Coach", icon: "coach" },
   { href: "/more", label: "More", icon: "more" },
 ];
-
-function NavIcon({ name }: { name: NavIcon }) {
-  if (name === "home") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3l8.5 7.5V21h-6v-6H9.5v6h-6Z" /></svg>;
-  }
-  if (name === "train") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" /></svg>;
-  }
-  if (name === "progress") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 5-5 4 3 7-8" /><path d="M15 7h5v5" /></svg>;
-  }
-  if (name === "coach") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 4Z" /></svg>;
-  }
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>;
-}
 
 export function ClientNav() {
   const pathname = usePathname();
@@ -141,7 +126,7 @@ export function ClientNav() {
             >
               <span className="relative">
                 <span className="block h-5 w-5 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-linecap-round [&>svg]:stroke-linejoin-round">
-                  <NavIcon name={link.icon} />
+                  <JcfIcon name={link.icon} />
                 </span>
                 {link.href === "/messages" && showUnreadBadge && (
                   <span className="absolute -right-1 -top-0.5 h-1.5 w-1.5 rounded-full bg-jcf-gold" />
