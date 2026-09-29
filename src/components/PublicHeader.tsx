@@ -3,7 +3,7 @@ import { JcfLogo } from "./JcfLogo";
 
 export function PublicHeader() {
   return (
-    <header className="sticky top-0 z-20 bg-jcf-black/95 backdrop-blur border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-20 bg-jcf-black/85 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between">
       <Link href="/">
         <JcfLogo size="sm" />
       </Link>
@@ -16,7 +16,7 @@ export function PublicHeader() {
         </Link>
         <Link
           href="/pricing"
-          className="text-xs uppercase tracking-widest bg-[#f97316] text-black font-semibold px-3 py-2 rounded-sm hover:opacity-90"
+          className="text-xs uppercase tracking-widest bg-[#f97316] text-black font-semibold px-3 py-2 rounded-xl hover:opacity-90"
         >
           Get Started
         </Link>
