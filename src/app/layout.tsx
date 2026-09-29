@@ -1,15 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Oswald, Inter } from "next/font/google";
+import { Anton, Inter } from "next/font/google";
 import "./globals.css";
 
-const oswald = Oswald({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const inter = Inter({
+const anton = Anton({\n  subsets: ["latin"],\n  weight: "400",\n  variable: "--font-display",\n  display: "swap",\n});\n\nconst inter = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
@@ -31,14 +24,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#07111C",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${oswald.variable} ${inter.variable}`}>
+    <html lang="en" className={`${anton.variable} ${inter.variable}`}>
       <body className="font-body bg-jcf-black text-jcf-white min-h-screen antialiased">
         <a href="#main-content" className="skip-link">Skip to main content</a>
         {children}
