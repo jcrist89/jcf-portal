@@ -131,6 +131,23 @@ describe("coaching delivery lifecycle", () => {
   });
 });
 
+describe("billing signals", () => {
+  it("surfaces a past-due coaching engagement as critical", () => {
+    const s = signalsFor(
+      snapshot({ engagement: engagement({ status: "past_due" }) }),
+      NOW,
+      TODAY,
+    );
+    const sig = s.find((x) => x.kind === "billing_past_due");
+    expect(sig?.severity).toBe("critical");
+    expect(sig?.action).toBe("Resolve billing");
+  });
+
+  it("does not raise billing work for an active engagement", () => {
+    expect(kinds(signalsFor(snapshot(), NOW, TODAY))).not.toContain("billing_past_due");
+  });
+});
+
 describe("unanswered message", () => {
   it("fires once past the 24-hour SLA", () => {
     const s = signalsFor(
