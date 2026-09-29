@@ -77,8 +77,8 @@ export default async function CoachClientsPage() {
   return (
     <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-5xl mx-auto pb-24 sm:pb-16">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-1">All Clients</h1>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:pb-12">
+        <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-1">All Clients</h1>
         <p className="text-jcf-gray text-sm mb-6">Updates live as clients log workouts, check-ins, and PRs.</p>
         <CoachOverview initialSummaries={summaries} viewerId={user.id} />
       </main>

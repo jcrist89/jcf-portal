@@ -54,6 +54,8 @@ function label(value: string | null | undefined) {
 export default async function AcquisitionPage() {
   await requireUser("coach");
   const admin = supabaseAdmin();
+  // Request-time Server Component snapshot.
+  // eslint-disable-next-line react-hooks/purity
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
   const [
@@ -181,10 +183,10 @@ export default async function AcquisitionPage() {
   return (
     <div className="pb-24">
       <CoachNav />
-      <main className="px-4 pt-6 max-w-6xl mx-auto pb-16">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-6xl mx-auto pb-16">
         <div className="mb-6">
-          <p className="text-[#f97316] text-xs uppercase tracking-[0.25em] mb-2">Acquisition</p>
-          <h1 className="font-display text-2xl uppercase tracking-wide">What Actually Produces Sales</h1>
+          <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.25em] mb-2">Acquisition</p>
+          <h1 className="font-display text-4xl uppercase leading-none tracking-wide">What Actually Produces Sales</h1>
           <p className="text-jcf-gray text-sm mt-1">
             Rolling 30-day view. Cash collected and contracted sales are intentionally separate.
           </p>
@@ -213,7 +215,7 @@ export default async function AcquisitionPage() {
           {rows.length === 0 ? (
             <Empty text="No tracked checkout activity yet." />
           ) : (
-            <div className="overflow-x-auto border border-white/10 rounded-sm">
+            <div className="overflow-x-auto border border-white/10 rounded-2xl">
               <table className="w-full min-w-[850px] text-sm">
                 <thead className="bg-jcf-panel text-jcf-gray text-xs uppercase tracking-wider">
                   <tr>
@@ -239,7 +241,7 @@ export default async function AcquisitionPage() {
                       <td className="p-3 text-right">{row.purchases}</td>
                       <td className="p-3 text-right">{pct(row.purchases,row.clicks)}</td>
                       <td className="p-3 text-right">{money(row.cash)}</td>
-                      <td className="p-3 text-right text-[#f97316]">{money(row.contracted)}</td>
+                      <td className="p-3 text-right text-[#FF6B1A]">{money(row.contracted)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,11 +258,11 @@ export default async function AcquisitionPage() {
           ) : (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {firstRows.map((row) => (
-                <div key={row.source} className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+                <div key={row.source} className="bg-jcf-panel/80 border border-white/10 shadow-[0_14px_38px_rgba(0,0,0,0.14)] rounded-2xl p-4">
                   <div className="font-display uppercase">{row.source}</div>
                   <div className="text-jcf-gray text-xs mt-1">{row.purchases} paid checkout{row.purchases === 1 ? "" : "s"}</div>
                   <div className="mt-3 text-sm">{money(row.cash)} cash</div>
-                  <div className="text-[#f97316] text-sm">{money(row.contracted)} contracted</div>
+                  <div className="text-[#FF6B1A] text-sm">{money(row.contracted)} contracted</div>
                 </div>
               ))}
             </div>
@@ -273,7 +275,7 @@ export default async function AcquisitionPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_14px_38px_rgba(0,0,0,0.14)] rounded-2xl p-4">
       <div className="font-display text-xl">{value}</div>
       <div className="text-jcf-gray text-[10px] uppercase tracking-widest mt-1">{label}</div>
     </div>
@@ -281,5 +283,5 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 text-jcf-gray text-sm">{text}</div>;
+  return <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_14px_38px_rgba(0,0,0,0.14)] rounded-2xl p-4 text-jcf-gray text-sm">{text}</div>;
 }

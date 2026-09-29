@@ -80,7 +80,7 @@ export function LeadPipeline({ initialLeads, offers }: { initialLeads: Lead[]; o
 
   return (
     <div>
-      <section className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6">
+      <section className="bg-jcf-panel/80 border border-white/10 rounded-[22px] p-5 mb-6 shadow-[0_16px_45px_rgba(0,0,0,0.16)]">
         <h2 className="font-display uppercase tracking-wide mb-3">Log A Lead</h2>
         {error && <p className="text-jcf-danger text-sm mb-3">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -97,7 +97,7 @@ export function LeadPipeline({ initialLeads, offers }: { initialLeads: Lead[]; o
             <textarea
               value={form.goal}
               onChange={(e) => setForm({ ...form, goal: e.target.value })}
-              className="w-full min-h-20 bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+              className="w-full min-h-20 bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
             />
           </label>
           <Field label="Next action" value={form.nextAction} onChange={(v) => setForm({ ...form, nextAction: v })} />
@@ -107,7 +107,7 @@ export function LeadPipeline({ initialLeads, offers }: { initialLeads: Lead[]; o
               type="date"
               value={form.nextActionDue}
               onChange={(e) => setForm({ ...form, nextActionDue: e.target.value })}
-              className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+              className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
             />
           </label>
         </div>
@@ -115,7 +115,7 @@ export function LeadPipeline({ initialLeads, offers }: { initialLeads: Lead[]; o
           type="button"
           onClick={createLead}
           disabled={creating}
-          className="mt-4 bg-[#f97316] text-black uppercase tracking-widest text-xs font-bold px-4 py-3 rounded-sm disabled:opacity-50"
+          className="mt-4 bg-[#FF6B1A] text-black uppercase tracking-widest text-xs font-bold px-4 py-3 rounded-xl disabled:opacity-50"
         >
           {creating ? "Saving…" : "Add lead"}
         </button>
@@ -123,7 +123,7 @@ export function LeadPipeline({ initialLeads, offers }: { initialLeads: Lead[]; o
 
       <div className="flex flex-col gap-3">
         {initialLeads.length === 0 ? (
-          <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 text-jcf-gray text-sm">
+          <div className="bg-jcf-panel/80 border border-white/10 rounded-[20px] p-4 shadow-[0_14px_38px_rgba(0,0,0,0.14)] text-jcf-gray text-sm">
             No leads logged yet.
           </div>
         ) : (
@@ -168,7 +168,7 @@ function LeadCard({ lead, offers }: { lead: Lead; offers: Offer[] }) {
   }
 
   return (
-    <article className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <article className="bg-jcf-panel border border-white/10 rounded-xl p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="font-medium">{lead.full_name || lead.contact_handle || lead.email || "Unnamed lead"}</div>
@@ -181,7 +181,7 @@ function LeadCard({ lead, offers }: { lead: Lead; offers: Offer[] }) {
             {lead.content_id ? ` · ${lead.content_id}` : ""}
           </div>
         </div>
-        <span className="text-xs uppercase tracking-widest text-[#f97316]">{lead.status}</span>
+        <span className="text-xs uppercase tracking-widest text-[#FF6B1A]">{lead.status}</span>
       </div>
 
       {lead.goal && <p className="text-sm text-white mt-3">{lead.goal}</p>}
@@ -200,19 +200,19 @@ function LeadCard({ lead, offers }: { lead: Lead; offers: Offer[] }) {
           value={nextAction}
           onChange={(e) => setNextAction(e.target.value)}
           placeholder="Next action"
-          className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-sm text-white"
+          className="bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-sm text-white"
         />
         <input
           type="date"
           value={nextActionDue}
           onChange={(e) => setNextActionDue(e.target.value)}
-          className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-sm text-white"
+          className="bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-sm text-white"
         />
         <button
           type="button"
           disabled={busy}
           onClick={() => patch({ nextAction, nextActionDue })}
-          className="border border-white/15 rounded-sm px-3 py-2 text-xs uppercase tracking-widest text-jcf-gray disabled:opacity-50"
+          className="border border-white/15 rounded-xl px-3 py-2 text-xs uppercase tracking-widest text-jcf-gray disabled:opacity-50"
         >
           Save task
         </button>
@@ -222,7 +222,7 @@ function LeadCard({ lead, offers }: { lead: Lead; offers: Offer[] }) {
         <select
           value={offerCode}
           onChange={(e) => setOfferCode(e.target.value)}
-          className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-sm text-white"
+          className="bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-sm text-white"
         >
           <option value="">Select offer for win…</option>
           {offers.map((offer) => (
@@ -250,7 +250,7 @@ function Action({ children, onClick, disabled }: { children: ReactNode; onClick:
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="border border-[#2563eb]/60 hover:bg-[#2563eb]/10 rounded-sm px-3 py-2 text-xs uppercase tracking-widest disabled:opacity-40"
+      className="border border-jcf-blue/50 text-jcf-blue hover:bg-jcf-blue/10 rounded-xl px-3 py-2 text-xs uppercase tracking-widest disabled:opacity-40"
     >
       {children}
     </button>
@@ -275,7 +275,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2 text-white"
+        className="w-full bg-jcf-black/40 border border-white/15 rounded-xl px-3 py-2 text-white"
       />
     </label>
   );

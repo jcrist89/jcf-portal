@@ -50,7 +50,7 @@ export function ProgressView({
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-xs uppercase tracking-wide rounded-sm border ${
+            className={`px-3 py-2 text-xs uppercase tracking-wide rounded-xl border ${
               tab === t ? "bg-jcf-gold text-jcf-black border-jcf-gold font-semibold" : "border-white/15 text-jcf-gray"
             }`}
           >
@@ -94,7 +94,7 @@ export function ProgressView({
           <LogPrForm onLogged={setToast} profileId={profileId} />
           <div className="mt-6 flex flex-col gap-2">
             {[...prs].reverse().map((p) => (
-              <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
+              <div key={p.id} className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] px-4 py-3 flex justify-between text-sm">
                 <span>{label(p.lift)}</span>
                 <span className="text-jcf-gold">{p.weight} {p.unit ?? "lb"} x {p.reps}</span>
                 <span className="text-jcf-gray text-right">
@@ -135,16 +135,16 @@ function BodyCompositionCard({
   const needsHips = sex === "female";
 
   return (
-    <section className="bg-jcf-panel border border-white/10 rounded-sm p-5">
+    <section className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-5">
       <p className="text-[10px] uppercase tracking-[0.2em] text-jcf-gold mb-2">Optional estimate</p>
       <h2 className="font-display text-xl uppercase tracking-wide">Body composition</h2>
       {estimate ? (
         <div className="grid grid-cols-2 gap-3 mt-5">
-          <div className="rounded-sm border border-white/10 bg-jcf-black/30 p-3">
+          <div className="rounded-xl border border-white/10 bg-jcf-black/30 p-3">
             <p className="text-[10px] uppercase tracking-wider text-jcf-gray">Estimated body fat</p>
             <p className="font-display text-3xl text-jcf-gold mt-1">{estimate.bodyFatPercent}%</p>
           </div>
-          <div className="rounded-sm border border-white/10 bg-jcf-black/30 p-3">
+          <div className="rounded-xl border border-white/10 bg-jcf-black/30 p-3">
             <p className="text-[10px] uppercase tracking-wider text-jcf-gray">Estimated lean mass</p>
             <p className="font-display text-3xl text-jcf-gold mt-1">{estimate.leanMassLb ?? "—"}<span className="text-base">{estimate.leanMassLb ? " lb" : ""}</span></p>
           </div>
@@ -167,8 +167,26 @@ function label(lift: string) {
 
 function ChartCard({ title, data, dataKey }: { title: string; data: any[]; dataKey: string }) {
   if (data.length === 0) return null;
+
+  if (data.length === 1) {
+    const unit = title.match(/\(([^)]+)\)/)?.[1] ?? "";
+
+    return (
+      <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4 mb-4">
+        <h3 className="text-xs uppercase tracking-widest text-jcf-gray mb-4">{title}</h3>
+        <div className="rounded-xl border border-jcf-gold/20 bg-jcf-black/25 px-4 py-5">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-jcf-gold">Starting point</p>
+          <p className="font-display text-4xl text-white mt-1">
+            {data[0][dataKey]} <span className="text-base text-jcf-gray">{unit}</span>
+          </p>
+          <p className="text-sm text-jcf-gray mt-3">Log one more check-in to unlock your trend line.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-4">
+    <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-jcf-gray mb-3">{title}</h3>
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={data}>
@@ -272,7 +290,7 @@ function LogMeasurementForm({
   }
 
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4">
       <div className="grid grid-cols-2 gap-3 mb-3">
         <Input label="Weight (lb)" type="number" value={form.weight} onChange={(e) => update("weight", e.target.value)} />
         {focus === "all" && (
@@ -374,14 +392,14 @@ function LogPrForm({
   }
 
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-4">
+    <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4 mb-4">
       <div className="flex flex-col gap-3 mb-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-jcf-gray">Lift</label>
           <select
             value={form.lift}
             onChange={(e) => update("lift", e.target.value)}
-            className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2.5 text-white"
+            className="bg-jcf-black border border-white/15 rounded-xl px-3 py-2.5 text-white"
           >
             {LIFTS.map((l) => (
               <option key={l} value={l}>{label(l)}</option>

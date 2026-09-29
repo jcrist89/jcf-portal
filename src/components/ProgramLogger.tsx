@@ -541,7 +541,7 @@ export function ProgramLogger({
 
   if (dayNeedsReadiness && !readiness) {
     return (
-      <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+      <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4">
         <h2 className="font-display uppercase tracking-wide text-sm text-jcf-gold mb-1">Readiness Check-In</h2>
         <p className="text-jcf-gray text-xs mb-4">A quick read before today&apos;s session — this shapes how heavy today gets.</p>
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -551,7 +551,7 @@ export function ProgramLogger({
               <select
                 value={readinessForm[key]}
                 onChange={(e) => setReadinessForm((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-                className="bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm text-white focus:outline-none focus:border-jcf-gold"
+                className="bg-jcf-black border border-white/15 rounded-xl px-2 py-2 text-sm text-white focus:outline-none focus:border-jcf-gold"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
@@ -581,7 +581,7 @@ export function ProgramLogger({
           <button
             key={i}
             onClick={() => changeDay(i)}
-            className={`shrink-0 px-3 py-2 rounded-sm text-xs uppercase tracking-wide border ${
+            className={`shrink-0 px-3 py-2 rounded-xl text-xs uppercase tracking-wide border ${
               i === dayIndex
                 ? "bg-jcf-gold text-jcf-black border-jcf-gold font-semibold"
                 : "border-white/15 text-jcf-gray hover:border-white/30"
@@ -604,7 +604,7 @@ export function ProgramLogger({
       )}
 
       {applied && (
-        <div className="bg-jcf-gold/10 border border-jcf-gold/40 rounded-sm p-3 mb-4 flex items-center justify-between gap-3">
+        <div className="bg-jcf-gold/10 border border-jcf-gold/40 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
           <p className="text-jcf-gold text-xs">{applied.summary}</p>
           <button
             type="button"
@@ -620,7 +620,7 @@ export function ProgramLogger({
         <button
           type="button"
           onClick={() => setRoughShiftOpen(true)}
-          className="w-full mb-4 px-3 py-3 rounded-sm text-xs uppercase tracking-wide border border-white/15 text-jcf-gray hover:border-jcf-gold hover:text-jcf-gold"
+          className="w-full mb-4 px-3 py-3 rounded-xl text-xs uppercase tracking-wide border border-white/15 text-jcf-gray hover:border-jcf-gold hover:text-jcf-gold"
         >
           Rough shift — cut today down
         </button>
@@ -660,7 +660,7 @@ export function ProgramLogger({
           const jokerIsBusy = !!jokerBusy[ex.name];
 
           return (
-            <details key={ex.name} open className="group bg-jcf-panel border border-white/10 rounded-sm p-4">
+            <details key={ex.name} open className="group bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4">
               <summary className="flex items-baseline justify-between mb-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <h3 className="font-display uppercase text-sm tracking-wide">{substitute?.name ?? ex.name}</h3>
                 <span className="text-xs text-jcf-gray flex items-center gap-2">
@@ -741,7 +741,7 @@ export function ProgramLogger({
                       value={s.reps}
                       onChange={(e) => updateSet(ex.name, idx, "reps", e.target.value)}
                       aria-label={`${ex.name} set ${idx + 1} reps`}
-                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
                       inputMode="decimal"
@@ -751,14 +751,14 @@ export function ProgramLogger({
                         last?.exercise.sets[idx]?.weight != null ? String(last.exercise.sets[idx].weight) : undefined
                       }
                       aria-label={`${ex.name} set ${idx + 1} weight`}
-                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                     <input
                       inputMode="decimal"
                       value={s.rpe}
                       onChange={(e) => updateSet(ex.name, idx, "rpe", e.target.value)}
                       aria-label={`${ex.name} set ${idx + 1} RPE`}
-                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                      className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                     />
                   </div>
                 ))}
@@ -773,7 +773,7 @@ export function ProgramLogger({
                     id={`substitute-${ex.name}`}
                     value={substitutions[ex.name] ?? ""}
                     onChange={(event) => setSubstitutions((prev) => ({ ...prev, [ex.name]: event.target.value }))}
-                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
+                    className="w-full bg-jcf-black border border-white/15 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
                   >
                     <option value="">{ex.name} (prescribed)</option>
                     {ex.substitutions.map((option, index) => (
@@ -797,7 +797,7 @@ export function ProgramLogger({
                         ...prev,
                         [ex.name]: { ...feedback, difficulty },
                       }))}
-                      className={`py-2 rounded-sm text-xs uppercase tracking-wide border ${
+                      className={`py-2 rounded-xl text-xs uppercase tracking-wide border ${
                         feedback.difficulty === difficulty
                           ? "border-jcf-gold bg-jcf-gold/10 text-jcf-gold"
                           : "border-white/15 text-jcf-gray hover:border-white/40"
@@ -820,7 +820,7 @@ export function ProgramLogger({
                       ...prev,
                       [ex.name]: { ...feedback, painScore: event.target.value },
                     }))}
-                    className="w-20 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                    className="w-20 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                   />
                   {Number(feedback.painScore) > 0 && (
                     <span className="text-xs text-jcf-danger">Stop if pain is sharp or worsening; use a substitute or contact Jon.</span>
@@ -836,7 +836,7 @@ export function ProgramLogger({
                   value={exerciseNotes[ex.name] ?? ""}
                   onChange={(event) => setExerciseNotes((prev) => ({ ...prev, [ex.name]: event.target.value }))}
                   placeholder="Optional: form, equipment, or anything Jon should know"
-                  className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
+                  className="w-full bg-jcf-black border border-white/15 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-jcf-gold"
                 />
               </div>
 
@@ -849,7 +849,7 @@ export function ProgramLogger({
                     <button
                       type="button"
                       onClick={() => markResult(ex, "hit")}
-                      className={`flex-1 py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border ${
+                      className={`flex-1 py-2 rounded-xl text-xs uppercase tracking-wide font-semibold border ${
                         result === "hit"
                           ? "bg-green-600/80 border-green-500 text-white"
                           : "border-white/15 text-jcf-gray hover:border-green-500/60"
@@ -860,7 +860,7 @@ export function ProgramLogger({
                     <button
                       type="button"
                       onClick={() => markResult(ex, "miss")}
-                      className={`flex-1 py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border ${
+                      className={`flex-1 py-2 rounded-xl text-xs uppercase tracking-wide font-semibold border ${
                         result === "miss"
                           ? "bg-jcf-panel border-white/40 text-white"
                           : "border-white/15 text-jcf-gray hover:border-white/40"
@@ -881,7 +881,7 @@ export function ProgramLogger({
                     type="button"
                     disabled={jokerIsBusy || !sets[ex.name]?.[0]?.weight || !sets[ex.name]?.[0]?.rpe}
                     onClick={() => requestJoker(ex)}
-                    className="w-full py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
+                    className="w-full py-2 rounded-xl text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
                   >
                     {jokerIsBusy ? "Requesting..." : "Request Joker Set"}
                   </button>
@@ -915,7 +915,7 @@ export function ProgramLogger({
                     <button
                       type="button"
                       onClick={() => addJokerResultSet(ex)}
-                      className="w-full py-2 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10"
+                      className="w-full py-2 rounded-xl text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10"
                     >
                       Add Joker Set Row
                     </button>
@@ -929,7 +929,7 @@ export function ProgramLogger({
                         onChange={(e) =>
                           setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: e.target.value, rpe: prev[ex.name]?.rpe ?? "" } }))
                         }
-                        className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                        className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                       />
                       <input
                         inputMode="decimal"
@@ -939,13 +939,13 @@ export function ProgramLogger({
                         onChange={(e) =>
                           setJokerResultDrafts((prev) => ({ ...prev, [ex.name]: { weight: prev[ex.name]?.weight ?? "", rpe: e.target.value } }))
                         }
-                        className="w-24 shrink-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                        className="w-24 shrink-0 bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                       />
                       <button
                         type="button"
                         disabled={jokerIsBusy}
                         onClick={() => submitJokerResult(ex, jokerRequest, Number(jokerResultDrafts[ex.name]?.rpe) > 8.5)}
-                        className="shrink-0 px-3 py-1.5 rounded-sm text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
+                        className="shrink-0 px-3 py-1.5 rounded-xl text-xs uppercase tracking-wide font-semibold border border-jcf-gold/50 text-jcf-gold hover:bg-jcf-gold/10 disabled:opacity-40"
                       >
                         Log
                       </button>
@@ -966,7 +966,7 @@ export function ProgramLogger({
       </div>
 
       {pendingDeviations && pendingDeviations.length > 0 && (
-        <div className="bg-jcf-panel border border-jcf-danger/40 rounded-sm p-4 mb-4">
+        <div className="bg-jcf-panel border border-jcf-danger/40 rounded-xl p-4 mb-4">
           <h3 className="text-xs uppercase tracking-widest text-jcf-danger mb-1">Weight Above Prescribed Limit</h3>
           <p className="text-jcf-gray text-xs mb-3">
             This weight exceeds today&apos;s prescribed limit. Completing the program as written is the goal of this
@@ -985,7 +985,7 @@ export function ProgramLogger({
                   onChange={(e) =>
                     setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, reason: e.target.value } : x)))
                   }
-                  className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                  className="bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                 />
                 <div className="flex gap-2">
                   <input
@@ -996,7 +996,7 @@ export function ProgramLogger({
                     onChange={(e) =>
                       setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, painScore: e.target.value } : x)))
                     }
-                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                    className="w-full bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                   />
                   <input
                     inputMode="numeric"
@@ -1006,7 +1006,7 @@ export function ProgramLogger({
                     onChange={(e) =>
                       setPendingDeviations((prev) => prev!.map((x, xi) => (xi === i ? { ...x, technicalRating: e.target.value } : x)))
                     }
-                    className="w-full bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
+                    className="w-full bg-jcf-black border border-white/15 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:border-jcf-gold"
                   />
                 </div>
               </div>
@@ -1036,7 +1036,7 @@ export function ProgramLogger({
             {recentLogs.slice(0, 15).map((log) => {
               const isOpen = expandedLog === log.id;
               return (
-                <div key={log.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3">
+                <div key={log.id} className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] px-4 py-3">
                   <button
                     className="flex items-center justify-between w-full text-left"
                     onClick={() => setExpandedLog(isOpen ? null : log.id)}

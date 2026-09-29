@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Button } from "@/components/Button";
+import { profileDisplayName } from "@/lib/profileDisplay";
 import { Input } from "@/components/Input";
 import { MessageThread } from "@/components/MessageThread";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -70,7 +71,7 @@ export function ClientDetailView({
       </Link>
       <div className="flex items-center justify-between mt-2 mb-6">
         <div>
-          <h1 className="font-display text-2xl uppercase tracking-wide">{profile.full_name ?? profile.email}</h1>
+          <h1 className="font-display text-2xl uppercase tracking-wide">{profileDisplayName(profile)}</h1>
           <p className="text-jcf-gray text-sm">
             {profile.email} · {profile.goal?.replace("_", " ") ?? "no goal"} ·{" "}
             <span className="text-jcf-gold">{TIER_LABELS[profile.tier] ?? profile.tier}</span>
@@ -335,7 +336,7 @@ function OverviewTab({ profile }: { profile: Profile }) {
       <ConfirmDialog
         open={confirmDeactivate}
         title="Deactivate Client"
-        description={`Deactivate ${profile.full_name ?? profile.email}? They'll lose access until you reactivate them.`}
+        description={`Deactivate ${profileDisplayName(profile)}? They'll lose access until you reactivate them.`}
         confirmLabel="Deactivate"
         destructive
         onConfirm={confirmDeactivateClient}
@@ -344,7 +345,7 @@ function OverviewTab({ profile }: { profile: Profile }) {
       <ConfirmDialog
         open={pendingTier != null}
         title="Change Tier"
-        description={`Change ${profile.full_name ?? profile.email}'s tier to ${
+        description={`Change ${profileDisplayName(profile)}'s tier to ${
           pendingTier ? TIER_DISPLAY_LABELS[pendingTier] ?? pendingTier : ""
         }? This does not touch Stripe billing.`}
         confirmLabel="Change Tier"
@@ -466,7 +467,7 @@ function ProgramTab({
         open={pendingSwap != null}
         title="Swap Program Template"
         description={`Assign "${pendingSwap?.name ?? ""}" to ${
-          profile.full_name ?? profile.email
+          profileDisplayName(profile)
         }? This replaces their current program instance — any in-progress edits to it won't carry over.`}
         confirmLabel="Swap Program"
         onConfirm={confirmSwapProgram}

@@ -4,14 +4,6 @@ import type { SchedulePosition } from "@/domain/schedule";
 import type { Consistency } from "@/domain/consistency";
 import type { SessionExerciseSummary } from "@/server/schedule";
 
-/**
- * The Today screen, presentational.
- *
- * Shared by the client's own screen and the coach's "what does he see" preview, so the
- * preview cannot drift into showing a layout no client has. `viewOnly` disables the two
- * interactive elements — starting a session and tapping a habit — since a coach looking
- * at a client's day should not be one tap away from logging habits as them.
- */
 export function TodayView({
   firstName,
   weekday,
@@ -43,121 +35,161 @@ export function TodayView({
 }) {
   return (
     <>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-jcf-gray mb-1">
-        {viewOnly ? "Viewing" : weekday}
-        {blockLabel && <span className="text-jcf-gold"> · {blockLabel}</span>}
-      </p>
-      <h1 className="font-display text-2xl uppercase tracking-wide mb-6">{firstName}</h1>
+      <header className="mb-6">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jcf-gray">
+          {viewOnly ? "Client view" : weekday}
+          {blockLabel && <span className="text-jcf-blue"> · {blockLabel}</span>}
+        </p>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm text-jcf-gray">{viewOnly ? "Today for" : "Today"}</p>
+            <h1 className="font-display text-4xl uppercase leading-none tracking-wide text-white">{firstName}</h1>
+          </div>
+          {!viewOnly && unread > 0 && (
+            <Link
+              href="/messages"
+              className="rounded-full border border-jcf-blue/30 bg-jcf-blue/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-jcf-blue"
+            >
+              {unread} new
+            </Link>
+          )}
+        </div>
+      </header>
 
-      {/* One action, or an explicit rest day. Never a blank screen. */}
-      <section className="bg-jcf-panel border border-white/10 rounded-sm p-5 mb-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-diagonal-fade" aria-hidden="true" />
+      <section className="relative mb-6 overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-jcf-panel via-jcf-panel to-jcf-charcoal p-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-jcf-blue/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-14 left-6 h-32 w-32 rounded-full bg-jcf-gold/10 blur-3xl" />
         {position.session ? (
-          <>
-            <div className="text-jcf-gold text-xs uppercase tracking-widest mb-1">
-              {position.dueToday ? "Today's session" : "Next session"}
+          <div className="relative">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-jcf-gold">
+                  {position.dueToday ? "Today's training" : "Next training"}
+                </p>
+                <h2 className="font-display text-3xl uppercase leading-none tracking-wide text-white">
+                  {position.session.label}
+                </h2>
+                <p className="mt-2 text-xs text-jcf-gray">
+                  {exercises.length} exercise{exercises.length === 1 ? "" : "s"}
+                  {position.session.scheduled_local_date && !position.dueToday && (
+                    <> · scheduled {position.session.scheduled_local_date}</>
+                  )}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-jcf-black/30 px-3 py-2 text-center">
+                <div className="font-display text-xl text-white">{exercises.length}</div>
+                <div className="text-[8px] font-semibold uppercase tracking-wider text-jcf-gray">Moves</div>
+              </div>
             </div>
-            <div className="font-display text-xl uppercase mb-1">{position.session.label}</div>
-            <p className="text-jcf-gray text-xs mb-4">
-              {exercises.length} exercise{exercises.length === 1 ? "" : "s"}
-              {position.session.scheduled_local_date && !position.dueToday && (
-                <> · scheduled {position.session.scheduled_local_date}</>
-              )}
-            </p>
-            <ul className="text-sm text-jcf-gray space-y-1 mb-5">
-              {exercises.slice(0, 3).map((ex, i) => (
-                <li key={i}>
-                  {ex.name}
-                  {ex.sets && ex.reps ? ` — ${ex.sets}x${ex.reps}` : ""}
-                </li>
-              ))}
-              {exercises.length > 3 && <li>+ {exercises.length - 3} more</li>}
-            </ul>
+
+            {exercises.length > 0 && (
+              <div className="mb-5 rounded-2xl border border-white/10 bg-jcf-black/20 px-4 py-3">
+                <ul className="space-y-1.5 text-sm text-jcf-gray">
+                  {exercises.slice(0, 3).map((ex, i) => (
+                    <li key={i} className="flex items-center justify-between gap-3">
+                      <span className="truncate text-white/90">{ex.name}</span>
+                      {ex.sets && ex.reps && <span className="shrink-0 text-xs text-jcf-gray">{ex.sets}×{ex.reps}</span>}
+                    </li>
+                  ))}
+                </ul>
+                {exercises.length > 3 && (
+                  <p className="mt-2 text-[10px] uppercase tracking-wider text-jcf-gray">+ {exercises.length - 3} more</p>
+                )}
+              </div>
+            )}
+
             {viewOnly ? (
-              <span className="inline-block w-full text-center bg-white/10 text-jcf-gray uppercase text-sm px-5 py-3 rounded-sm cursor-not-allowed">
-                Start workout (not available in preview)
+              <span className="block w-full cursor-not-allowed rounded-xl bg-white/10 px-5 py-3 text-center text-sm font-semibold uppercase tracking-wide text-jcf-gray">
+                Start workout unavailable in preview
               </span>
             ) : (
               <Link
                 href="/program"
-                className="inline-block bg-jcf-gold text-jcf-black uppercase text-sm font-semibold px-5 py-3 rounded-sm w-full text-center"
+                className="block w-full rounded-xl bg-jcf-gold px-5 py-3.5 text-center text-sm font-bold uppercase tracking-wide text-jcf-black transition-all hover:brightness-105 active:translate-y-px"
               >
                 {position.dueToday ? "Start workout" : "Preview session"}
               </Link>
             )}
-          </>
+          </div>
         ) : (
-          <>
-            <div className="text-jcf-gold text-xs uppercase tracking-widest mb-1">
-              {position.complete ? "Block complete" : "Rest day"}
-            </div>
-            <p className="text-jcf-gray text-sm">
-              {position.complete
-                ? "Nice work — Jon will have your next block ready shortly."
-                : position.totalWeeks > 0
-                ? "Nothing scheduled today. Recovery is part of the program."
-                : "No program assigned yet — Jon is setting yours up."}
+          <div className="relative">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-jcf-blue">
+              {position.complete ? "Block complete" : "Recovery day"}
             </p>
-          </>
+            <h2 className="font-display text-3xl uppercase leading-none tracking-wide text-white">
+              {position.complete ? "Work Done." : "Recover On Purpose."}
+            </h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-jcf-gray">
+              {position.complete
+                ? "Jon will have your next block ready shortly."
+                : position.totalWeeks > 0
+                ? "Nothing is scheduled today. Hit the basics, recover, and come back ready."
+                : "No program assigned yet. Jon is setting yours up."}
+            </p>
+          </div>
         )}
       </section>
 
       {position.sessionsBehind > 0 && (
-        <div className="rounded-sm p-3 mb-6 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
+        <div className="mb-6 rounded-2xl border border-jcf-gold/30 bg-jcf-gold/10 p-4 text-sm text-jcf-gold">
           {viewOnly ? "They're" : "You're"} {position.sessionsBehind} session
-          {position.sessionsBehind === 1 ? "" : "s"} behind where this block expected{" "}
-          {viewOnly ? "them" : "you"}. Nothing is lost — pick up right where you left off.
+          {position.sessionsBehind === 1 ? "" : "s"} behind. Nothing is lost. Pick up where you left off.
         </div>
       )}
 
       {nutritionTargets?.calories != null && (
-        <section className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6">
-          <div className="flex items-baseline justify-between gap-3 mb-3">
+        <section className="mb-6 rounded-[20px] border border-white/10 bg-jcf-panel/80 p-4 shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
+          <div className="mb-3 flex items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-jcf-gray">Today&apos;s starting targets</p>
-              <p className="font-display text-3xl text-jcf-gold">{nutritionTargets.calories}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-jcf-gray">Today&apos;s targets</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-display text-3xl text-jcf-gold">{nutritionTargets.calories}</span>
+                <span className="text-xs text-jcf-gray">calories</span>
+              </div>
             </div>
-            <span className="text-xs text-jcf-gray">Calories</span>
+            {!viewOnly && (
+              <Link href="/nutrition" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-jcf-blue">
+                Log food →
+              </Link>
+            )}
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center border-t border-white/10 pt-3">
-            <div><div className="font-display text-lg">{nutritionTargets.protein ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Protein</div></div>
-            <div><div className="font-display text-lg">{nutritionTargets.carbs ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Carbs</div></div>
-            <div><div className="font-display text-lg">{nutritionTargets.fat ?? "—"}g</div><div className="text-[10px] uppercase tracking-wider text-jcf-gray">Fat</div></div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["Protein", nutritionTargets.protein],
+              ["Carbs", nutritionTargets.carbs],
+              ["Fat", nutritionTargets.fat],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-xl bg-jcf-black/30 px-2 py-2.5 text-center">
+                <div className="font-display text-xl text-white">{value ?? "—"}{value != null ? "g" : ""}</div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">{label}</div>
+              </div>
+            ))}
           </div>
         </section>
       )}
 
       <HabitRow initial={habits} localDate={localDate} readOnly={viewOnly} />
 
-      <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center">
-        <div>
-          <div className="font-display text-lg text-jcf-gold">{streak.daysHit}</div>
-          <div className="text-[10px] uppercase tracking-wider text-jcf-gray">
-            of last {streak.windowDays} days
-          </div>
+      <section className="grid grid-cols-3 gap-2 rounded-[20px] border border-white/10 bg-jcf-panel/50 p-3">
+        <div className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
+          <div className="font-display text-2xl text-jcf-gold">{streak.daysHit}</div>
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">of {streak.windowDays} days</div>
         </div>
-        <Link href={viewOnly ? "#" : "/checkin"} className="block">
-          <div className={`font-display text-lg ${checkinOverdue ? "text-jcf-danger" : ""}`}>
-            {checkinOverdue
-              ? "Due"
-              : daysToCheckin == null
-              ? "—"
-              : daysToCheckin === 0
-              ? "Today"
-              : `${daysToCheckin}d`}
+        <Link href={viewOnly ? "#" : "/checkin"} className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
+          <div className={`font-display text-2xl ${checkinOverdue ? "text-jcf-danger" : "text-white"}`}>
+            {checkinOverdue ? "Due" : daysToCheckin == null ? "—" : daysToCheckin === 0 ? "Today" : `${daysToCheckin}d`}
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-jcf-gray">Check-in</div>
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">Check-in</div>
         </Link>
-        <div>
-          <div className={`font-display text-lg ${unread ? "text-jcf-gold" : ""}`}>{unread}</div>
-          <div className="text-[10px] uppercase tracking-wider text-jcf-gray">Unread</div>
-        </div>
-      </div>
+        <Link href={viewOnly ? "#" : "/messages"} className="rounded-xl bg-jcf-black/20 px-2 py-3 text-center">
+          <div className={`font-display text-2xl ${unread ? "text-jcf-blue" : "text-white"}`}>{unread}</div>
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-jcf-gray">Messages</div>
+        </Link>
+      </section>
 
       {position.adherence.pct != null && (
-        <p className="text-jcf-gray text-xs text-center mt-4">
-          {position.adherence.completed + position.adherence.scaled} of{" "}
-          {position.adherence.accountedFor} scheduled sessions done this block.
+        <p className="mt-4 text-center text-xs text-jcf-gray">
+          {position.adherence.completed + position.adherence.scaled} of {position.adherence.accountedFor} scheduled sessions completed this block.
         </p>
       )}
     </>

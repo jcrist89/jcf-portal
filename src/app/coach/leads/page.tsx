@@ -102,10 +102,10 @@ export default async function LeadsPage() {
   return (
     <div className="pb-24">
       <CoachNav />
-      <main className="px-4 pt-6 max-w-6xl mx-auto pb-16">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-6xl mx-auto pb-16">
         <div className="mb-6">
-          <p className="text-[#f97316] text-xs uppercase tracking-[0.25em] mb-2">Sales Pipeline</p>
-          <h1 className="font-display text-2xl uppercase tracking-wide">Leads + Cohorts</h1>
+          <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.25em] mb-2">Sales Pipeline</p>
+          <h1 className="font-display text-4xl uppercase leading-none tracking-wide">Leads + Cohorts</h1>
           <p className="text-jcf-gray text-sm mt-1">
             A lead stays assigned to the week they entered the funnel, even if the sale closes later.
           </p>
@@ -121,11 +121,11 @@ export default async function LeadsPage() {
         <section className="mb-8">
           <h2 className="font-display uppercase tracking-wide mb-3">Cohort Scorecard</h2>
           {scorecard.length === 0 ? (
-            <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 text-jcf-gray text-sm">
+            <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_14px_38px_rgba(0,0,0,0.14)] rounded-2xl p-4 text-jcf-gray text-sm">
               Cohort metrics appear after the first lead is logged.
             </div>
           ) : (
-            <div className="overflow-x-auto border border-white/10 rounded-sm">
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-jcf-panel/40 shadow-[0_14px_38px_rgba(0,0,0,0.14)]">
               <table className="w-full min-w-[860px] text-sm">
                 <thead className="bg-jcf-panel text-jcf-gray text-xs uppercase tracking-wider">
                   <tr>
@@ -153,7 +153,7 @@ export default async function LeadsPage() {
                       <td className="p-3 text-right">{pct(row.qualified,row.leads)}</td>
                       <td className="p-3 text-right">{pct(row.attended,row.booked)}</td>
                       <td className="p-3 text-right">{pct(row.won,row.attended)}</td>
-                      <td className="p-3 text-right text-[#f97316]">{money(row.contracted)}</td>
+                      <td className="p-3 text-right text-[#FF6B1A]">{money(row.contracted)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -170,7 +170,7 @@ export default async function LeadsPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
+    <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_14px_38px_rgba(0,0,0,0.14)] rounded-2xl p-4">
       <div className="font-display text-xl">{value}</div>
       <div className="text-jcf-gray text-[10px] uppercase tracking-widest mt-1">{label}</div>
     </div>

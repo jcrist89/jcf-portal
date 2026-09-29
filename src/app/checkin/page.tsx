@@ -44,11 +44,11 @@ export default async function CheckinPage() {
   return (
     <div className="pb-24">
       <ClientNav />
-      <main className="px-4 pt-6 max-w-2xl mx-auto">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-1">Check-In</h1>
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-2xl mx-auto">
+        <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-1">Check-In</h1>
 
         {current?.submitted_at ? (
-          <div className="bg-jcf-panel border border-jcf-success/40 rounded-sm p-5 mb-6">
+          <div className="bg-jcf-panel border border-jcf-success/40 rounded-2xl p-5 mb-6">
             <p className="text-jcf-success uppercase text-xs tracking-widest mb-2">Sent</p>
             <p className="text-jcf-gray text-sm mb-3">
               This week&apos;s check-in is with Jon. He&apos;ll come back to you.
@@ -69,7 +69,7 @@ export default async function CheckinPage() {
             Your check-in schedule starts once Jon sets up your coaching block.
           </p>
         ) : !weeklyCheckins ? (
-          <div className="bg-jcf-panel border border-white/10 rounded-sm p-5">
+          <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-5">
             <p className="text-jcf-gray text-sm">
               Weekly check-ins are not part of your current coaching package. Your scheduled progress reviews and program updates still happen on the cadence included with your offer.
             </p>
@@ -77,7 +77,7 @@ export default async function CheckinPage() {
         ) : (
           <>
             {state?.status === "overdue" && (
-              <div className="rounded-sm p-3 mb-4 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
+              <div className="rounded-2xl p-3 mb-4 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
                 This one&apos;s {state?.daysOverdue} day{state?.daysOverdue === 1 ? "" : "s"} late. Two minutes and
                 it&apos;s done.
               </div>
@@ -93,7 +93,7 @@ export default async function CheckinPage() {
               {checkins
                 .filter((c) => c.submitted_at && c.id !== current?.id)
                 .map((c) => (
-                  <div key={c.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3">
+                  <div key={c.id} className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl px-4 py-3">
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="text-sm text-white">{c.due_local_date}</span>
                       <span className="text-xs text-jcf-gray">

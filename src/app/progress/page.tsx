@@ -15,7 +15,7 @@ export default async function ProgressPage() {
     <div className="pb-24">
       <ClientNav />
       <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-2xl mx-auto">
-        <h1 className="font-display text-2xl uppercase tracking-wide mb-6">Progress</h1>
+        <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-6">Progress</h1>
         <ProgressView
           measurements={(measurements ?? []) as Measurement[]}
           prs={(prs ?? []) as PR[]}

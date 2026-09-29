@@ -62,7 +62,7 @@ export function HabitRow({
   const count = habitCount(habits);
 
   return (
-    <section aria-labelledby="daily-four" className="mb-6">
+    <section aria-labelledby="daily-four" className="mb-6 rounded-[20px] border border-white/10 bg-jcf-panel/50 p-4 shadow-[0_16px_45px_rgba(0,0,0,0.14)]">
       <div className="flex items-baseline justify-between mb-2">
         <h2 id="daily-four" className="text-[10px] uppercase tracking-[0.2em] text-jcf-gray">
           Daily Four
@@ -72,7 +72,7 @@ export function HabitRow({
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {HABIT_KEYS.map((key) => {
           const on = habits[key];
           return (
@@ -83,7 +83,7 @@ export function HabitRow({
               disabled={readOnly}
               aria-pressed={on}
               aria-label={`${LABELS[key]}${on ? ", done" : ", not done"}`}
-              className={`rounded-sm border py-4 px-1 text-center transition-colors ${
+              className={`rounded-xl border py-4 px-1 text-center transition-colors ${
                 on
                   ? "border-jcf-success bg-jcf-success/15 text-jcf-success"
                   : "border-white/15 text-jcf-gray hover:border-white/30"
