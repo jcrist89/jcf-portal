@@ -26,6 +26,7 @@ export type SignalKind =
   | "intake_incomplete"
   | "program_setup_due"
   | "progress_review_due"
+  | "billing_past_due"
   | "sessions_missed"
   | "quiet"
   | "adherence_low"
@@ -244,6 +245,19 @@ export function signalsFor(
         since: null,
       });
     }
+  }
+
+  // ── billing that needs attention ─────────────────────────────────────────
+  if (engagement?.status === "past_due") {
+    out.push({
+      kind: "billing_past_due",
+      severity: "critical",
+      fingerprint: `billing:${engagement.id}:past_due`,
+      headline: "Payment is past due",
+      evidence: "Stripe reported a failed payment on the active coaching agreement.",
+      action: "Resolve billing",
+      since: null,
+    });
   }
 
   // ── missed scheduled sessions ─────────────────────────────────────────────

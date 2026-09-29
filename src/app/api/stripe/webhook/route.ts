@@ -274,6 +274,21 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
             message: "Local 3-pay subscription update arrived before onboarding linked the profile",
             context: { subscriptionId: sub.id },
           });
+        } else if (status !== "canceled") {
+          const { error: engagementError } = await admin
+            .from("client_engagements")
+            .update({ status })
+            .eq("stripe_subscription_id", sub.id)
+            .in("status", ["active", "past_due"]);
+
+          if (engagementError) {
+            await logEvent(admin, {
+              level: "error",
+              source: "stripe.installments",
+              message: "Local 3-pay subscription update could not sync engagement billing state",
+              context: { subscriptionId: sub.id, status, error: engagementError.message },
+            });
+          }
         }
         break;
       }
@@ -480,6 +495,29 @@ async function processEvent(admin: SupabaseClient, event: Stripe.Event): Promise
           message: "invoice.payment_failed ignored — not a portal subscription",
           context: { invoiceId: invoice.id, subscriptionId },
         });
+      } else {
+        const { error: engagementError } = await admin
+          .from("client_engagements")
+          .update({ status: "past_due" })
+          .eq("stripe_subscription_id", subscriptionId)
+          .in("status", ["active", "past_due"]);
+
+        if (engagementError) {
+          await logEvent(admin, {
+            level: "error",
+            source: "stripe.webhook",
+            message: "invoice.payment_failed could not mark the active engagement past due",
+            context: { invoiceId: invoice.id, subscriptionId, error: engagementError.message },
+          });
+        } else {
+          await logEvent(admin, {
+            level: "warning",
+            source: "billing.payment_failed",
+            message: "Active coaching payment is past due",
+            context: { invoiceId: invoice.id, subscriptionId },
+            profileId: matched[0]?.id ?? null,
+          });
+        }
       }
       break;
     }
