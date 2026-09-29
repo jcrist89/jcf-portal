@@ -13,9 +13,9 @@ export default async function StartPage({
     <div className="min-h-screen">
       <PublicHeader />
       <main id="main-content" className="px-6 py-16 sm:py-20">
-        <div className="max-w-2xl mx-auto">
-          <p className="text-[#f97316] text-xs uppercase tracking-[0.3em] mb-3">Coaching Inquiry</p>
-          <h1 className="font-display uppercase text-3xl sm:text-5xl tracking-tight mb-4">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.3em] mb-3">Coaching Inquiry</p>
+          <h1 className="font-display uppercase text-4xl sm:text-6xl leading-none tracking-tight mb-4">
             Tell Me What You&apos;re Trying To Fix.
           </h1>
           <p className="text-jcf-gray text-sm sm:text-base leading-relaxed mb-8">
