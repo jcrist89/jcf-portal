@@ -40,7 +40,7 @@ export default async function MorePage() {
             </Link>
           ))}
         </div>
-        <div className="mt-6 sm:hidden"><SignOutButton /></div>
+        <div className="mt-6 md:hidden"><SignOutButton /></div>
       </main>
     </div>
   );
