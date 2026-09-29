@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/PublicHeader";
 
-const LOCAL_CHECKOUT = "https://buy.stripe.com/bJebJ37Kf6tI6cYaqnaIM0j";
-const PRIVATE_CHECKOUT = "https://buy.stripe.com/9B69AV3tZ3hw0SEdCzaIM0e";
-const RESET_CHECKOUT = "https://buy.stripe.com/8x26oJ0hN4lA1WIcyvaIM0k";
+const LOCAL_CHECKOUT = "/go/local-pif";
+const PRIVATE_CHECKOUT = "/go/private";
+const RESET_CHECKOUT = "/go/reset";
 const INSTAGRAM = "https://www.instagram.com/joncristfit/";
 
 const offers = [
