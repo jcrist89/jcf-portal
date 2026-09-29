@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CoachNav } from "@/components/CoachNav";
 import { requireUser } from "@/lib/auth/require";
+import { SignOutButton } from "@/components/SignOutButton";
 
 const tools = [
   { href: "/coach/operations", eyebrow: "Business", title: "Operations", copy: "Launch readiness, billing signals, and the systems that keep coaching moving." },
@@ -40,6 +41,7 @@ export default async function CoachMorePage() {
             </Link>
           ))}
         </div>
+        <div className="mt-6 md:hidden"><SignOutButton /></div>
       </main>
     </div>
   );
