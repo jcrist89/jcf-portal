@@ -18,7 +18,7 @@ export default async function CoachMorePage() {
   return (
     <div className="pb-24">
       <CoachNav />
-      <main className="mx-auto max-w-4xl px-4 pt-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-4 pt-6">
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-jcf-gray">Coach tools</p>
         <h1 className="font-display text-4xl uppercase leading-none tracking-wide">More</h1>
         <p className="mb-7 mt-2 max-w-xl text-sm leading-relaxed text-jcf-gray">
