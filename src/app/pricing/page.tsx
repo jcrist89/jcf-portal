@@ -1,4 +1,13 @@
 import { PublicHeader } from "@/components/PublicHeader";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  SHIFT_RESET_CAP,
+  SHIFT_RESET_OFFER_CODE,
+  SHIFT_RESET_OPEN_DATE,
+  shiftResetEnrollmentOpen,
+} from "@/lib/shiftReset";
+
+export const dynamic = "force-dynamic";
 
 const LOCAL_CHECKOUT = "/go/local-pif";
 const PRIVATE_CHECKOUT = "/go/private";
@@ -41,7 +50,16 @@ const offers = [
   },
 ] as const;
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const admin = supabaseAdmin();
+  const { count } = await admin
+    .from("jcf_checkout_purchases")
+    .select("checkout_session_id", { count: "exact", head: true })
+    .eq("offer_code", SHIFT_RESET_OFFER_CODE)
+    .eq("payment_status", "paid");
+  const resetPaid = count ?? 0;
+  const resetOpen = shiftResetEnrollmentOpen(resetPaid);
+
   return (
     <div className="min-h-screen">
       <PublicHeader />
@@ -123,12 +141,20 @@ export default function PricingPage() {
               A $27 beta for shift workers and busy adults who are tired of one rough week turning into
               a month off-track. Limited to 10 paid participants.
             </p>
-            <a
-              href={RESET_CHECKOUT}
-              className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#f97316] text-black px-4 py-3 rounded-sm hover:opacity-90"
-            >
-              Join The Shift Reset
-            </a>
+            {resetOpen ? (
+              <a
+                href={RESET_CHECKOUT}
+                className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#f97316] text-black px-4 py-3 rounded-sm hover:opacity-90"
+              >
+                Join The Shift Reset
+              </a>
+            ) : (
+              <div className="mt-5 text-jcf-gray text-xs uppercase tracking-widest">
+                {resetPaid >= SHIFT_RESET_CAP
+                  ? "Beta roster full"
+                  : `Enrollment opens ${SHIFT_RESET_OPEN_DATE}`}
+              </div>
+            )}
           </section>
 
           <p className="max-w-4xl mx-auto text-jcf-gray text-xs mt-8 leading-relaxed">
