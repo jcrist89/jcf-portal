@@ -22,7 +22,7 @@ export default async function BillingPage() {
   return (
     <div className="pb-24">
       <ClientNav />
-      <main className="px-4 pt-6 max-w-md mx-auto">
+      <main id="main-content" tabIndex={-1} className="px-4 pt-6 max-w-md mx-auto">
         <h1 className="font-display text-4xl uppercase leading-none tracking-wide mb-6">Billing</h1>
 
         <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-4 mb-4">
