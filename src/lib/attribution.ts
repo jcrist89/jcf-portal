@@ -91,7 +91,9 @@ export function touchFromRequest(request: NextRequest): AttributionTouch | null 
     campaign,
     contentId,
     term,
-    landingPath: clean(`${request.nextUrl.pathname}${request.nextUrl.search}`, MAX_PATH),
+    // Campaign fields are stored separately. Keeping arbitrary query strings
+    // adds no analytical value and can accidentally retain unrelated identifiers.
+    landingPath: clean(request.nextUrl.pathname, MAX_PATH),
     referrer: cleanReferrer(request.headers.get("referer")),
     capturedAt: new Date().toISOString(),
   };
