@@ -28,7 +28,7 @@ export async function loadCoachQueue(
 ): Promise<{ queue: QueueEntry[]; clientCount: number }> {
   const { data: profiles } = await client
     .from("profiles")
-    .select("id, full_name, timezone")
+    .select("id, full_name, timezone, onboarded")
     .eq("role", "client")
     .eq("is_active", true);
 
@@ -155,6 +155,7 @@ export async function loadCoachQueue(
       engagement,
       schedule: position,
       hasAssignment: assignment != null,
+      onboarded: profile.onboarded === true,
       lastActivityDate,
       latestClientMessageAt: latestClient?.created_at ?? null,
       latestClientMessageId: latestClient?.id ?? null,

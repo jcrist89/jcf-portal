@@ -43,6 +43,7 @@ function snapshot(over: Partial<ClientSnapshot> = {}): ClientSnapshot {
     engagement: engagement(),
     schedule: schedule(),
     hasAssignment: true,
+    onboarded: true,
     lastActivityDate: TODAY,
     latestClientMessageAt: null,
     latestClientMessageId: null,
@@ -67,6 +68,66 @@ describe("a healthy client raises nothing", () => {
   it("is absent from the queue entirely", () => {
     const queue = buildQueue([{ snapshot: snapshot(), suppressions: [] }], NOW, TODAY);
     expect(queue).toEqual([]);
+  });
+});
+
+describe("coaching delivery lifecycle", () => {
+  it("flags an incomplete intake for an active engagement", () => {
+    const s = signalsFor(
+      snapshot({
+        onboarded: false,
+        engagement: engagement({ starts_on: "2026-08-29" }),
+      }),
+      NOW,
+      TODAY,
+    );
+    expect(kinds(s)).toContain("intake_incomplete");
+  });
+
+  it("flags a missing program after onboarding", () => {
+    const s = signalsFor(
+      snapshot({
+        onboarded: true,
+        hasAssignment: false,
+        engagement: engagement({ starts_on: "2026-08-29" }),
+      }),
+      NOW,
+      TODAY,
+    );
+    expect(kinds(s)).toContain("program_setup_due");
+  });
+
+  it("surfaces the local week 4 review", () => {
+    const s = signalsFor(
+      snapshot({
+        engagement: engagement({
+          offer_code: "JCF_LOCAL_12W_PIF",
+          starts_on: "2026-08-02",
+          ends_on: "2026-10-25",
+        }),
+      }),
+      NOW,
+      TODAY,
+    );
+    const sig = s.find((x) => x.kind === "progress_review_due");
+    expect(sig?.headline).toContain("Week 4");
+  });
+
+  it("moves the local review fingerprint to week 8 later in the term", () => {
+    const s = signalsFor(
+      snapshot({
+        engagement: engagement({
+          offer_code: "JCF_LOCAL_12W_PIF",
+          starts_on: "2026-07-01",
+          ends_on: "2026-09-23",
+        }),
+      }),
+      NOW,
+      TODAY,
+    );
+    const sig = s.find((x) => x.kind === "progress_review_due");
+    expect(sig?.headline).toContain("Week 8");
+    expect(sig?.fingerprint).toContain(":w8");
   });
 });
 

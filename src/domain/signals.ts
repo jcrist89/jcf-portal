@@ -23,6 +23,9 @@ export type SignalKind =
   | "checkin_overdue"
   | "checkin_awaiting_review"
   | "message_unanswered"
+  | "intake_incomplete"
+  | "program_setup_due"
+  | "progress_review_due"
   | "sessions_missed"
   | "quiet"
   | "adherence_low"
@@ -55,7 +58,7 @@ export const BASELINE_SUPPRESSION_WEEKS = 4;
 export const REPEATED_SCALING_COUNT = 3;
 export const REPEATED_SCALING_WINDOW_DAYS = 14;
 
-export const RENEWAL_WINDOW_DAYS = 14;
+export const RENEWAL_WINDOW_DAYS = 28;
 
 export interface CoachSignal {
   kind: SignalKind;
@@ -78,6 +81,8 @@ export interface ClientSnapshot {
   engagement: Engagement | null;
   schedule: SchedulePosition;
   hasAssignment: boolean;
+  /** Whether the client completed the intake/onboarding flow. */
+  onboarded: boolean;
   /** Latest completed session or habit day. */
   lastActivityDate: string | null;
   latestClientMessageAt: string | null;
@@ -180,6 +185,64 @@ export function signalsFor(
           since: snapshot.latestClientMessageAt.slice(0, 10),
         });
       }
+    }
+  }
+
+  // ── paid coaching setup that has not reached delivery yet ────────────────
+  const daysInEngagement = engagement ? daysBetween(engagement.starts_on, today) : -1;
+  const liveEngagement =
+    engagement != null &&
+    (engagement.status === "pending" || engagement.status === "active" || engagement.status === "past_due");
+
+  if (engagement && liveEngagement && !snapshot.onboarded) {
+    out.push({
+      kind: "intake_incomplete",
+      severity: daysInEngagement >= 1 ? "critical" : "high",
+      fingerprint: `intake:${engagement.id}`,
+      headline: "Client intake is not complete",
+      evidence:
+        daysInEngagement >= 1
+          ? `Their coaching engagement started ${engagement.starts_on}, but onboarding is still incomplete.`
+          : "Their coaching account is active, but the intake has not been completed yet.",
+      action: "Follow up on intake",
+      since: engagement.starts_on,
+    });
+  } else if (engagement && liveEngagement && snapshot.onboarded && !snapshot.hasAssignment && daysInEngagement >= 0) {
+    out.push({
+      kind: "program_setup_due",
+      severity: daysInEngagement >= 2 ? "critical" : "high",
+      fingerprint: `program:${engagement.id}`,
+      headline: "Program still needs built",
+      evidence: `Engagement started ${engagement.starts_on} and there is no active program assignment.`,
+      action: "Build and assign program",
+      since: engagement.starts_on,
+    });
+  }
+
+  // ── local 4- and 8-week service reviews ───────────────────────────────────
+  if (
+    engagement &&
+    liveEngagement &&
+    snapshot.onboarded &&
+    (engagement.offer_code === "JCF_LOCAL_12W_PIF" || engagement.offer_code === "JCF_LOCAL_12W_3PAY")
+  ) {
+    const reviewWeek =
+      daysInEngagement >= 56 && daysInEngagement < 84
+        ? 8
+        : daysInEngagement >= 28 && daysInEngagement < 56
+          ? 4
+          : null;
+
+    if (reviewWeek != null) {
+      out.push({
+        kind: "progress_review_due",
+        severity: "high",
+        fingerprint: `review:${engagement.id}:w${reviewWeek}`,
+        headline: `Week ${reviewWeek} progress review due`,
+        evidence: "Local coaching includes a structured progress review and program update every four weeks.",
+        action: "Complete review + update",
+        since: null,
+      });
     }
   }
 
