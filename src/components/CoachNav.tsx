@@ -27,7 +27,7 @@ export function CoachNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 bg-jcf-black/95 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-20 bg-jcf-black/85 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link href="/coach">
             <JcfWordmark />
@@ -51,7 +51,7 @@ export function CoachNav() {
         </button>
       </header>
 
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-jcf-charcoal border-t border-white/10 overflow-x-auto jcf-scrollbar flex justify-start gap-1 px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-jcf-charcoal/92 backdrop-blur-xl border-t border-white/10 overflow-x-auto jcf-scrollbar flex justify-start gap-1 px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {links.map((l) => {
           const active = pathname === l.href;
           return (
@@ -59,7 +59,7 @@ export function CoachNav() {
               key={l.href}
               href={l.href}
               className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] uppercase tracking-wider ${
-                active ? "text-jcf-gold" : "text-jcf-gray"
+                active ? "text-jcf-gold bg-jcf-gold/10 rounded-xl" : "text-jcf-gray"
               }`}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-jcf-gold" : "bg-transparent"}`} />
