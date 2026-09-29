@@ -50,7 +50,7 @@ export function TodayView({
       <h1 className="font-display text-2xl uppercase tracking-wide mb-6">{firstName}</h1>
 
       {/* One action, or an explicit rest day. Never a blank screen. */}
-      <section className="bg-jcf-panel border border-white/10 rounded-sm p-5 mb-6 relative overflow-hidden">
+      <section className="bg-jcf-panel/90 border border-white/10 rounded-2xl shadow-[0_18px_54px_rgba(0,0,0,0.20)] p-5 mb-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-24 h-24 bg-diagonal-fade" aria-hidden="true" />
         {position.session ? (
           <>
@@ -74,13 +74,13 @@ export function TodayView({
               {exercises.length > 3 && <li>+ {exercises.length - 3} more</li>}
             </ul>
             {viewOnly ? (
-              <span className="inline-block w-full text-center bg-white/10 text-jcf-gray uppercase text-sm px-5 py-3 rounded-sm cursor-not-allowed">
+              <span className="inline-block w-full text-center bg-white/10 text-jcf-gray uppercase text-sm px-5 py-3 rounded-2xl cursor-not-allowed">
                 Start workout (not available in preview)
               </span>
             ) : (
               <Link
                 href="/program"
-                className="inline-block bg-jcf-gold text-jcf-black uppercase text-sm font-semibold px-5 py-3 rounded-sm w-full text-center"
+                className="inline-block bg-jcf-gold text-jcf-black uppercase text-sm font-semibold px-5 py-3 rounded-xl w-full text-center hover:brightness-105 active:translate-y-px"
               >
                 {position.dueToday ? "Start workout" : "Preview session"}
               </Link>
@@ -103,7 +103,7 @@ export function TodayView({
       </section>
 
       {position.sessionsBehind > 0 && (
-        <div className="rounded-sm p-3 mb-6 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
+        <div className="rounded-2xl p-3 mb-6 text-sm border bg-jcf-gold/10 border-jcf-gold/40 text-jcf-gold">
           {viewOnly ? "They're" : "You're"} {position.sessionsBehind} session
           {position.sessionsBehind === 1 ? "" : "s"} behind where this block expected{" "}
           {viewOnly ? "them" : "you"}. Nothing is lost — pick up right where you left off.
@@ -111,7 +111,7 @@ export function TodayView({
       )}
 
       {nutritionTargets?.calories != null && (
-        <section className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6">
+        <section className="bg-jcf-panel/90 border border-white/10 rounded-2xl shadow-[0_18px_54px_rgba(0,0,0,0.20)] p-4 mb-6">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-jcf-gray">Today&apos;s starting targets</p>
