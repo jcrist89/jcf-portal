@@ -59,7 +59,7 @@ export default async function ProgramPage() {
       <ClientNav />
       <main className="px-4 pt-6 max-w-2xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-1">
-          <h1 className="font-display text-2xl uppercase tracking-wide">My Program</h1>
+          <h1 className="font-display text-4xl uppercase leading-none tracking-wide">My Program</h1>
           {p && user.tier !== "free" && (
             <Link
               href="/program/edit"
@@ -84,7 +84,7 @@ export default async function ProgramPage() {
         )}
 
         {p && p.meet_date && daysToMeet != null && (
-          <div className="bg-jcf-panel border border-white/10 rounded-sm p-4 mb-6 flex items-center justify-between">
+          <div className="bg-jcf-panel/80 border border-white/10 shadow-[0_16px_45px_rgba(0,0,0,0.16)] rounded-2xl p-4 mb-6 flex items-center justify-between">
             <div>
               <div className="font-display text-3xl text-white">{daysToMeet}</div>
               <div className="text-[10px] uppercase tracking-wider text-jcf-gray">Days to Platform</div>
@@ -103,7 +103,7 @@ export default async function ProgramPage() {
         )}
 
         {p && p.attempt_plan?.released && (
-          <div className="bg-jcf-panel border border-jcf-gold/30 rounded-sm p-4 mb-6">
+          <div className="bg-jcf-panel border border-jcf-gold/30 rounded-2xl p-4 mb-6">
             <h2 className="font-display uppercase tracking-wide text-sm text-jcf-gold mb-3">Your Openers</h2>
             <div className="grid grid-cols-2 gap-4">
               {(["bench", "deadlift"] as const).map((lift) => {
