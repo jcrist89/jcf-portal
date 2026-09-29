@@ -66,7 +66,7 @@ export default async function PricingPage() {
       <main id="main-content">
         <section className="px-6 py-16 sm:py-20">
           <div className="max-w-4xl mx-auto text-center mb-12">
-            <p className="text-[#f97316] text-xs uppercase tracking-[0.3em] mb-3">Local Coaching</p>
+            <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.3em] mb-3">Local Coaching</p>
             <h1 className="font-display uppercase text-3xl sm:text-5xl tracking-tight mb-4">
               Buy The System. Add Sessions When You Need Them.
             </h1>
@@ -80,36 +80,36 @@ export default async function PricingPage() {
             {offers.map((offer) => (
               <article
                 key={offer.name}
-                className={`flex flex-col rounded-sm p-6 border ${
+                className={`flex flex-col rounded-2xl p-6 border ${
                   offer.featured
-                    ? "bg-[#f97316]/10 border-[#f97316]"
-                    : "bg-jcf-panel border-white/10"
+                    ? "bg-[#FF6B1A]/10 border-[#FF6B1A]"
+                    : "bg-jcf-panel/90 border-white/10"
                 }`}
               >
                 <h2 className="font-display uppercase text-xl tracking-wide mb-2">{offer.name}</h2>
                 <div className="mb-4">
-                  <span className="font-display text-3xl text-[#f97316]">{offer.price}</span>
+                  <span className="font-display text-3xl text-[#FF6B1A]">{offer.price}</span>
                   <p className="text-jcf-gray text-xs mt-1">{offer.detail}</p>
                 </div>
                 <p className="text-jcf-gray text-sm leading-relaxed mb-5">{offer.description}</p>
                 <ul className="flex flex-col gap-2 mb-8 text-sm text-white flex-1">
                   {offer.features.map((feature) => (
                     <li key={feature} className="flex gap-2">
-                      <span className="text-[#2563eb] font-bold">✓</span>
+                      <span className="text-[#59A9DC] font-bold">✓</span>
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
                 <a
                   href={offer.href}
-                  className="text-center uppercase tracking-widest text-xs font-bold bg-[#f97316] text-black px-4 py-3 rounded-sm hover:opacity-90"
+                  className="text-center uppercase tracking-widest text-xs font-bold bg-[#FF6B1A] text-black px-4 py-3 rounded-2xl hover:opacity-90"
                 >
                   {offer.cta}
                 </a>
                 {offer.featured && (
                   <a
                     href="/start?interest=local-3pay"
-                    className="text-center uppercase tracking-widest text-xs font-semibold border border-[#2563eb] text-white px-4 py-3 rounded-sm mt-2 hover:bg-[#2563eb]/10"
+                    className="text-center uppercase tracking-widest text-xs font-semibold border border-[#59A9DC] text-white px-4 py-3 rounded-2xl mt-2 hover:bg-[#59A9DC]/10"
                   >
                     Ask About 3 × $150
                   </a>
@@ -118,8 +118,8 @@ export default async function PricingPage() {
             ))}
           </div>
 
-          <section className="max-w-4xl mx-auto mt-8 bg-jcf-panel border border-[#2563eb]/60 p-6 rounded-sm">
-            <p className="text-[#60a5fa] text-xs uppercase tracking-[0.25em] mb-2">Remote Coaching</p>
+          <section className="max-w-4xl mx-auto mt-8 bg-jcf-panel/90 border border-[#59A9DC]/60 p-6 rounded-2xl">
+            <p className="text-[#9DD5F2] text-xs uppercase tracking-[0.25em] mb-2">Remote Coaching</p>
             <h2 className="font-display uppercase text-2xl mb-2">Not Local? That&apos;s Fine.</h2>
             <p className="text-jcf-gray text-sm leading-relaxed max-w-2xl">
               Remote 12-week coaching is available for clients who need individualized programming,
@@ -128,14 +128,14 @@ export default async function PricingPage() {
             </p>
             <a
               href="/start?interest=remote"
-              className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#2563eb] text-white px-4 py-3 rounded-sm hover:opacity-90"
+              className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#59A9DC] text-white px-4 py-3 rounded-2xl hover:opacity-90"
             >
               Ask About Remote Coaching
             </a>
           </section>
 
-          <section className="max-w-4xl mx-auto mt-8 bg-[#0b1220] border border-white/10 p-6 rounded-sm">
-            <p className="text-[#f97316] text-xs uppercase tracking-[0.25em] mb-2">November 9–22, 2026</p>
+          <section className="max-w-4xl mx-auto mt-8 bg-[#0A1623] border border-white/10 p-6 rounded-2xl">
+            <p className="text-[#FF6B1A] text-xs uppercase tracking-[0.25em] mb-2">November 9–22, 2026</p>
             <h2 className="font-display uppercase text-2xl mb-2">14-Day Shift Reset Beta</h2>
             <p className="text-jcf-gray text-sm leading-relaxed">
               A $27 beta for shift workers and busy adults who are tired of one rough week turning into
@@ -144,7 +144,7 @@ export default async function PricingPage() {
             {resetOpen ? (
               <a
                 href={RESET_CHECKOUT}
-                className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#f97316] text-black px-4 py-3 rounded-sm hover:opacity-90"
+                className="inline-block mt-5 uppercase tracking-widest text-xs font-bold bg-[#FF6B1A] text-black px-4 py-3 rounded-2xl hover:opacity-90"
               >
                 Join The Shift Reset
               </a>
