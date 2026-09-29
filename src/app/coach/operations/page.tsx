@@ -3,6 +3,14 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CoachNav } from "@/components/CoachNav";
 import { PrivateSessionOps } from "@/components/PrivateSessionOps";
 
+const SALES_LINKS = [
+  { label: "Local Coaching — $399 PIF", href: "https://buy.stripe.com/bJebJ37Kf6tI6cYaqnaIM0j" },
+  { label: "Local Coaching — 3 × $150", href: "https://buy.stripe.com/6oU4gB5C76tIeJu41ZaIM0l" },
+  { label: "Remote Coaching — $997 PIF", href: "https://buy.stripe.com/7sY4gB0hN9FUdFqeGDaIM0g" },
+  { label: "Private Training — $45", href: "https://buy.stripe.com/9B69AV3tZ3hw0SEdCzaIM0e" },
+  { label: "Shift Reset — $27", href: "https://buy.stripe.com/8x26oJ0hN4lA1WIcyvaIM0k" },
+] as const;
+
 function when(value: string) {
   return new Date(value).toLocaleString();
 }
@@ -48,6 +56,27 @@ export default async function OperationsPage() {
             Paid checkouts that stalled before activation, private sessions waiting on scheduling, and the Shift Reset roster.
           </p>
         </div>
+
+        <section className="mb-8">
+          <h2 className="font-display uppercase tracking-wide mb-3">Coach Sales Links</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SALES_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 text-sm hover:border-[#f97316]/60 transition-colors"
+              >
+                <span className="text-white">{link.label}</span>
+                <span className="block text-jcf-gray text-xs mt-1">Open secure checkout →</span>
+              </a>
+            ))}
+          </div>
+          <p className="text-jcf-gray text-xs mt-3">
+            The 3 × $150 link is intentionally coach-only and is not published on the public pricing page.
+          </p>
+        </section>
 
         <section className="mb-8">
           <div className="flex items-baseline justify-between mb-3">
