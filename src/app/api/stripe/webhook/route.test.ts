@@ -426,7 +426,13 @@ describe("POST /api/stripe/webhook", () => {
     await POST(fakeRequest());
 
     expect(db.tables.profiles[0].subscription_status).toBe("past_due");
-    expect(db.tables.event_log ?? []).toHaveLength(0);
+    const logged = db.tables.event_log ?? [];
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatchObject({
+      level: "warning",
+      source: "billing.payment_failed",
+      profile_id: "client-1",
+    });
   });
 
   it("rejects when the signature is missing", async () => {
