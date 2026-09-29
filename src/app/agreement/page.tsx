@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { PublicHeader } from "@/components/PublicHeader";
@@ -70,7 +71,7 @@ export default async function AgreementPage({
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <PublicHeader />
