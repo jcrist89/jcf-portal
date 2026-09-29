@@ -2,7 +2,14 @@ import type { Metadata, Viewport } from "next";
 import { Anton, Inter } from "next/font/google";
 import "./globals.css";
 
-const anton = Anton({\n  subsets: ["latin"],\n  weight: "400",\n  variable: "--font-display",\n  display: "swap",\n});\n\nconst inter = Inter({
+const anton = Anton({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
+  display: "swap",
+});
+
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
