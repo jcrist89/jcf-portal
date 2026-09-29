@@ -5,6 +5,11 @@ import {
   SHIFT_RESET_OFFER_CODE,
   shiftResetEnrollmentOpen,
 } from "@/lib/shiftReset";
+import { checkoutOffer } from "@/lib/checkoutOffers";
+import {
+  legalRequirementsForOffer,
+  missingLegalAcceptances,
+} from "@/server/legalRequirements";
 import {
   ATTR_FIRST_COOKIE,
   ATTR_LAST_COOKIE,
@@ -14,29 +19,6 @@ import {
   defaultOnsiteTouch,
   encodeTouch,
 } from "@/lib/attribution";
-
-const OFFERS: Record<string, { offerCode: string; destination: string }> = {
-  "local-pif": {
-    offerCode: "JCF_LOCAL_12W_PIF",
-    destination: "https://buy.stripe.com/bJebJ37Kf6tI6cYaqnaIM0j",
-  },
-  "local-3pay": {
-    offerCode: "JCF_LOCAL_12W_3PAY",
-    destination: "https://buy.stripe.com/6oU4gB5C76tIeJu41ZaIM0l",
-  },
-  "remote-pif": {
-    offerCode: "JCF_REMOTE_12W_PIF",
-    destination: "https://buy.stripe.com/7sY4gB0hN9FUdFqeGDaIM0g",
-  },
-  private: {
-    offerCode: "JCF_PRIVATE_60",
-    destination: "https://buy.stripe.com/9B69AV3tZ3hw0SEdCzaIM0e",
-  },
-  reset: {
-    offerCode: "JCF_SHIFT_RESET_2026_11",
-    destination: "https://buy.stripe.com/8x26oJ0hN4lA1WIcyvaIM0k",
-  },
-};
 
 function cookieOptions() {
   return {
@@ -53,7 +35,7 @@ export async function GET(
   context: { params: Promise<{ offer: string }> },
 ) {
   const { offer } = await context.params;
-  const config = OFFERS[offer];
+  const config = checkoutOffer(offer);
   if (!config) return NextResponse.redirect(new URL("/pricing", request.url));
 
   const admin = supabaseAdmin();
@@ -86,6 +68,36 @@ export async function GET(
   if (!first) first = last ?? fallback;
   if (!last) last = first ?? fallback;
 
+  const options = cookieOptions();
+  const withTrackingCookies = (response: NextResponse) => {
+    if (createdVisitor) response.cookies.set(ATTR_VISITOR_COOKIE, visitorId, options);
+    if (!request.cookies.get(ATTR_FIRST_COOKIE)?.value) {
+      response.cookies.set(ATTR_FIRST_COOKIE, encodeTouch(first!), options);
+    }
+    if (!request.cookies.get(ATTR_LAST_COOKIE)?.value) {
+      response.cookies.set(ATTR_LAST_COOKIE, encodeTouch(last!), options);
+    }
+    return response;
+  };
+
+  // Legal requirements are data-driven and currently disabled until reviewed
+  // documents are activated. Once enabled, checkout fails closed if an active
+  // version is missing and otherwise requires acceptance of that exact version.
+  const legal = await legalRequirementsForOffer(admin, config.offerCode, "pre_checkout");
+  if (legal.misconfigured) {
+    const target = new URL("/pricing", request.url);
+    target.searchParams.set("legal", "unavailable");
+    return withTrackingCookies(NextResponse.redirect(target));
+  }
+  if (legal.requirements.length > 0) {
+    const missing = await missingLegalAcceptances(admin, visitorId, legal.requirements);
+    if (missing.length > 0) {
+      const target = new URL("/agreement", request.url);
+      target.searchParams.set("offer", offer);
+      return withTrackingCookies(NextResponse.redirect(target));
+    }
+  }
+
   const { error } = await admin.from("jcf_attribution_events").insert({
     visitor_id: visitorId,
     event_type: "checkout_click",
@@ -105,14 +117,5 @@ export async function GET(
     console.error("attribution checkout_click", error.message);
   }
 
-  const response = NextResponse.redirect(config.destination);
-  const options = cookieOptions();
-  if (createdVisitor) response.cookies.set(ATTR_VISITOR_COOKIE, visitorId, options);
-  if (!request.cookies.get(ATTR_FIRST_COOKIE)?.value) {
-    response.cookies.set(ATTR_FIRST_COOKIE, encodeTouch(first), options);
-  }
-  if (!request.cookies.get(ATTR_LAST_COOKIE)?.value) {
-    response.cookies.set(ATTR_LAST_COOKIE, encodeTouch(last), options);
-  }
-  return response;
+  return withTrackingCookies(NextResponse.redirect(config.destination));
 }
