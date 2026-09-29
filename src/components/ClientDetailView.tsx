@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Button } from "@/components/Button";
+import { profileDisplayName } from "@/lib/profileDisplay";
 import { Input } from "@/components/Input";
 import { MessageThread } from "@/components/MessageThread";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
