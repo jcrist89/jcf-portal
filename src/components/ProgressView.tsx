@@ -167,6 +167,24 @@ function label(lift: string) {
 
 function ChartCard({ title, data, dataKey }: { title: string; data: any[]; dataKey: string }) {
   if (data.length === 0) return null;
+
+  if (data.length === 1) {
+    const unit = title.match(/\(([^)]+)\)/)?.[1] ?? "";
+
+    return (
+      <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4 mb-4">
+        <h3 className="text-xs uppercase tracking-widest text-jcf-gray mb-4">{title}</h3>
+        <div className="rounded-xl border border-jcf-gold/20 bg-jcf-black/25 px-4 py-5">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-jcf-gold">Starting point</p>
+          <p className="font-display text-4xl text-white mt-1">
+            {data[0][dataKey]} <span className="text-base text-jcf-gray">{unit}</span>
+          </p>
+          <p className="text-sm text-jcf-gray mt-3">Log one more check-in to unlock your trend line.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-jcf-panel/80 border border-white/10 rounded-2xl shadow-[0_14px_38px_rgba(0,0,0,0.14)] p-4 mb-4">
       <h3 className="text-xs uppercase tracking-widest text-jcf-gray mb-3">{title}</h3>
