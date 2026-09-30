@@ -3,8 +3,10 @@ import {
   CAMPAIGN_TAXONOMY,
   LAUNCH_LINKS,
   OCTOBER_BASELINE_TARGETS,
+  addDays,
   mondayOfWeek,
   newYorkDate,
+  newYorkMidnightUtc,
   progress,
 } from "./launchOps";
 
@@ -17,6 +19,12 @@ describe("launch operations", () => {
 
   it("resolves New York local dates", () => {
     expect(newYorkDate(new Date("2026-10-01T02:00:00Z"))).toBe("2026-09-30");
+  });
+
+  it("creates Eastern local-midnight UTC boundaries", () => {
+    expect(newYorkMidnightUtc("2026-09-30")).toBe("2026-09-30T04:00:00.000Z");
+    expect(newYorkMidnightUtc("2026-11-10")).toBe("2026-11-10T05:00:00.000Z");
+    expect(addDays("2026-09-28", 7)).toBe("2026-10-05");
   });
 
   it("caps progress at 100 percent", () => {
