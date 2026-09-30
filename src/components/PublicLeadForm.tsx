@@ -74,6 +74,7 @@ export function PublicLeadForm({ initialInterest = "" }: { initialInterest?: str
           <option value="local-3pay">Local coaching — 3-payment option</option>
           <option value="remote">Remote 12-week coaching</option>
           <option value="private">Private training</option>
+          <option value="shift-reset">14-Day Shift Reset</option>
         </select>
       </label>
 
