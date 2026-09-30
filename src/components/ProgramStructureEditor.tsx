@@ -156,34 +156,40 @@ export function ProgramStructureEditor({
 
                   <div className="flex flex-col gap-2">
                     {day.exercises.map((ex, ei) => (
-                      <div key={ei} className="grid grid-cols-[1fr_3rem_3rem_4rem_auto] gap-1.5 items-center">
+                      <div key={ei} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_4rem_4rem_5rem_auto] gap-2 items-center">
                         <input
                           value={ex.name}
                           onChange={(e) => updateExercise(wi, di, ei, "name", e.target.value)}
-                          className="bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-xs"
+                          className="col-span-2 sm:col-span-1 w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-xs"
                           placeholder="Exercise"
+                          aria-label={`Exercise name, ${ei + 1}`}
                         />
                         <input
                           value={ex.sets}
                           onChange={(e) => updateExercise(wi, di, ei, "sets", e.target.value)}
-                          className="bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
+                          className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
                           placeholder="Sets"
+                          aria-label={`Sets for ${ex.name}`}
                         />
                         <input
                           value={ex.reps}
                           onChange={(e) => updateExercise(wi, di, ei, "reps", e.target.value)}
-                          className="bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
+                          className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
                           placeholder="Reps"
+                          aria-label={`Reps for ${ex.name}`}
                         />
                         <input
                           value={ex.rest}
                           onChange={(e) => updateExercise(wi, di, ei, "rest", e.target.value)}
-                          className="bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
+                          className="w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-1 py-1.5 text-xs text-center"
                           placeholder="Rest"
+                          aria-label={`Rest period for ${ex.name}`}
                         />
                         <button
+                          type="button"
                           onClick={() => removeExercise(wi, di, ei)}
-                          className="text-jcf-danger text-xs px-1"
+                          aria-label={`Remove ${ex.name}`}
+                          className="justify-self-end text-jcf-danger text-xs px-1"
                         >
                           ✕
                         </button>
@@ -196,7 +202,7 @@ export function ProgramStructureEditor({
                               return s;
                             })
                           }
-                          className="col-span-5 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-xs"
+                          className="col-span-2 sm:col-span-5 w-full min-w-0 bg-jcf-black border border-white/15 rounded-sm px-2 py-1.5 text-xs"
                           placeholder="Client substitutions, comma separated"
                           aria-label={`Substitutions for ${ex.name}`}
                         />
