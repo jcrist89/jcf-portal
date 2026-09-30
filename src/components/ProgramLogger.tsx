@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { DraftStatus } from "@/components/DraftStatus";
 import type { FlatDay } from "@/lib/program";
@@ -15,6 +15,7 @@ import { RoughShiftSheet } from "@/components/RoughShiftSheet";
 import { planRoughShift, type RoughShiftReason, type ScalingPlan } from "@/domain/scaling";
 import { RestTimer } from "@/components/RestTimer";
 import { parseRestSeconds, progressionRecommendation, warmupSets } from "@/lib/workoutGuidance";
+import { restTimerStartState } from "@/lib/restTimer";
 
 const READINESS_FIELDS: { key: keyof ReadinessFormState; label: string }[] = [
   { key: "sleep", label: "Sleep Quality" },
@@ -187,6 +188,8 @@ export function ProgramLogger({
 
   const [initialDraft] = useState(() => loadLocalOrDefault(localKey, day, recentLogs, trainingMaxes));
   const [sets, setSets] = useState<Record<string, SetInput[]>>(initialDraft.sets);
+  const autoStartedSets = useRef(new Set<string>());
+  const [restTimerStarts, setRestTimerStarts] = useState<Record<string, number>>({});
   const [tmResults, setTmResults] = useState<Record<string, "hit" | "miss">>(initialDraft.tmResults);
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>(initialDraft.exerciseNotes);
   const [exerciseFeedback, setExerciseFeedback] = useState<Record<string, { difficulty?: "easy" | "right" | "hard"; painScore: string }>>(initialDraft.exerciseFeedback);
@@ -241,11 +244,23 @@ export function ProgramLogger({
     setSubstitutions(loaded.substitutions);
   }
 
-  function updateSet(exName: string, idx: number, field: keyof SetInput, value: string) {
+  function updateSet(exName: string, idx: number, field: keyof SetInput, value: string, autoStart = true) {
+    const currentSet = sets[exName]?.[idx] ?? { reps: "", weight: "", rpe: "" };
+    const updatedSet = { ...currentSet, [field]: value };
+    const setKey = `${dayIndex}:${exName}:${idx}`;
+    if (autoStart && (field === "reps" || field === "weight")) {
+      const transition = restTimerStartState(updatedSet, autoStartedSets.current.has(setKey));
+      if (transition.hasStarted) autoStartedSets.current.add(setKey);
+      else autoStartedSets.current.delete(setKey);
+      if (transition.shouldStart) {
+        const timerKey = `${dayIndex}:${exName}`;
+        setRestTimerStarts((previous) => ({ ...previous, [timerKey]: (previous[timerKey] ?? 0) + 1 }));
+      }
+    }
     setSets((prev) => {
       const next = { ...prev };
       next[exName] = [...next[exName]];
-      next[exName][idx] = { ...next[exName][idx], [field]: value };
+      next[exName][idx] = updatedSet;
       return next;
     });
   }
@@ -358,7 +373,7 @@ export function ProgramLogger({
         setJokerRequests((prev) => prev.map((r) => (r.id === jokerRequest.id ? data.jokerRequest : r)));
         const idx = jokerSetIndex[ex.name];
         if (idx != null) {
-          updateSet(ex.name, idx, "weight", draft.weight);
+          updateSet(ex.name, idx, "weight", draft.weight, false);
           updateSet(ex.name, idx, "rpe", draft.rpe);
         }
       }
@@ -725,7 +740,11 @@ export function ProgramLogger({
                   <span className="text-jcf-gray">No previous log for this exercise yet.</span>
                 )}
               </div>
-              <RestTimer seconds={restSeconds} />
+              <RestTimer
+                key={`${dayIndex}:${ex.name}:${restSeconds}:${restTimerStarts[`${dayIndex}:${ex.name}`] ?? 0}`}
+                seconds={restSeconds}
+                autoStart={(restTimerStarts[`${dayIndex}:${ex.name}`] ?? 0) > 0}
+              />
               <div className="flex flex-col gap-1.5">
                 <div className="grid grid-cols-[1.25rem_1fr_1fr_1fr] gap-1.5 sm:gap-2 text-[10px] uppercase text-jcf-gray tracking-wider">
                   <span>Set</span>
