@@ -102,3 +102,29 @@ export function progress(actual: number, target: number): number {
   if (target <= 0) return 0;
   return Math.min(100, Math.round((actual / target) * 100));
 }
+
+
+export function newYorkMidnightUtc(dateString: string): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const noonUtc = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "longOffset",
+    hour: "2-digit",
+  }).formatToParts(noonUtc);
+  const zone = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT-05:00";
+  const match = zone.match(/GMT([+-])(\d{2}):(\d{2})/);
+  const sign = match?.[1] === "-" ? -1 : 1;
+  const offsetMinutes = match
+    ? sign * (Number(match[2]) * 60 + Number(match[3]))
+    : -300;
+  const utcMs = Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMinutes * 60_000;
+  return new Date(utcMs).toISOString();
+}
+
+export function addDays(dateString: string, days: number): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0,10);
+}
