@@ -3,16 +3,9 @@
 import { useEffect, useState } from "react";
 import { formatDuration } from "@/lib/workoutGuidance";
 
-export function RestTimer({ seconds }: { seconds: number | null }) {
+export function RestTimer({ seconds, autoStart = false }: { seconds: number | null; autoStart?: boolean }) {
   const [remaining, setRemaining] = useState(seconds ?? 0);
-  const [running, setRunning] = useState(false);
-
-  useEffect(() => {
-    // A changed exercise/rest prescription resets this independent timer.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRemaining(seconds ?? 0);
-    setRunning(false);
-  }, [seconds]);
+  const [running, setRunning] = useState(autoStart);
 
   useEffect(() => {
     if (!running) return;
