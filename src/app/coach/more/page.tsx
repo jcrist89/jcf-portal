@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/require";
 import { SignOutButton } from "@/components/SignOutButton";
 
 const tools = [
+  { href: "/coach/launch", eyebrow: "Business", title: "Launch Operations", copy: "Run the October sales routine, weekly targets, tracked links, milestones, and CEO review." },
   { href: "/coach/operations", eyebrow: "Business", title: "Operations", copy: "Launch readiness, billing signals, and the systems that keep coaching moving." },
   { href: "/coach/acquisition", eyebrow: "Growth", title: "Acquisition", copy: "Review acquisition performance and where clients are coming from." },
   { href: "/coach/templates", eyebrow: "Programming", title: "Templates", copy: "Build and manage reusable program templates." },
