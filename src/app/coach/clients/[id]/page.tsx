@@ -40,7 +40,7 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
   return (
     <div>
       <CoachNav />
-      <main className="px-4 pt-6 max-w-3xl mx-auto pb-24 sm:pb-16">
+      <main className="w-full min-w-0 max-w-3xl mx-auto px-4 pt-6 pb-24 sm:pb-16">
         <ClientDetailView
           profile={profile as Profile}
           program={program}

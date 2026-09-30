@@ -65,19 +65,19 @@ export function ClientDetailView({
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <Link href="/coach" className="text-jcf-gray text-xs uppercase tracking-widest hover:text-jcf-gold">
         ← All Clients
       </Link>
-      <div className="flex items-center justify-between mt-2 mb-6">
-        <div>
-          <h1 className="font-display text-2xl uppercase tracking-wide">{profileDisplayName(profile)}</h1>
-          <p className="text-jcf-gray text-sm">
+      <div className="mt-2 mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display break-words text-2xl uppercase tracking-wide">{profileDisplayName(profile)}</h1>
+          <p className="break-words text-jcf-gray text-sm">
             {profile.email} · {profile.goal?.replace("_", " ") ?? "no goal"} ·{" "}
             <span className="text-jcf-gold">{TIER_LABELS[profile.tier] ?? profile.tier}</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`/coach/clients/${profile.id}/preview`}
             className="text-jcf-gray text-xs uppercase tracking-widest hover:text-jcf-gold border border-white/15 rounded-sm px-3 py-2 shrink-0"
@@ -88,7 +88,7 @@ export function ClientDetailView({
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto jcf-scrollbar mb-6">
+      <div className="mb-6 flex max-w-full gap-2 overflow-x-auto jcf-scrollbar">
         {TABS.map((t) => (
           <button
             key={t}
@@ -188,13 +188,13 @@ function ActivityTab({ profileId }: { profileId: string }) {
     <div>
       <div className="flex flex-col gap-2">
         {events.map((e, i) => (
-          <div key={i} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between gap-4 text-sm">
-            <div>
+          <div key={i} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex flex-col gap-2 text-sm sm:flex-row sm:justify-between sm:gap-4">
+            <div className="min-w-0 break-words">
               <span className="text-jcf-gold text-xs uppercase tracking-widest mr-2">{EVENT_LABELS[e.type] ?? e.type}</span>
               <span>{e.summary}</span>
               {e.detail && <div className="text-jcf-gray text-xs mt-1">{e.detail}</div>}
             </div>
-            <span className="text-jcf-gray text-xs shrink-0">{new Date(e.date).toLocaleString()}</span>
+            <span className="text-jcf-gray text-xs sm:shrink-0">{new Date(e.date).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -321,14 +321,14 @@ function OverviewTab({ profile }: { profile: Profile }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="bg-jcf-panel border border-white/10 rounded-sm p-4">
         <h3 className="text-xs uppercase tracking-widest text-jcf-gold mb-3">Profile</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          <Input label="Birthday" type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-          <Input label="Height (in)" type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} />
-          <Input label="Current Weight (lb)" type="number" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input className="w-full min-w-0" label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <Input className="w-full min-w-0" label="Birthday" type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+          <Input className="w-full min-w-0" label="Height (in)" type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} />
+          <Input className="w-full min-w-0" label="Current Weight (lb)" type="number" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} />
         </div>
         <Button onClick={save} disabled={saving} className="mt-4">{saving ? "Saving..." : "Save Changes"}</Button>
       </div>
@@ -340,7 +340,7 @@ function OverviewTab({ profile }: { profile: Profile }) {
           onChange={(e) => setPendingTier(e.target.value)}
           disabled={savingTier}
           aria-label="Client tier"
-          className="bg-jcf-black border border-white/15 rounded-sm px-3 py-2.5 text-white text-sm focus:outline-none focus:border-jcf-gold"
+          className="w-full max-w-full bg-jcf-black border border-white/15 rounded-sm px-3 py-2.5 text-white text-sm focus:outline-none focus:border-jcf-gold"
         >
           <option value="free">Free</option>
           <option value="paid_programming">Programming</option>
@@ -456,13 +456,13 @@ function ProgramTab({
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       {program ? (
         <>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="font-display uppercase text-white">{program.name}</div>
-              <div className="text-jcf-gray text-sm">{program.description}</div>
+          <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="break-words font-display uppercase text-white">{program.name}</div>
+              <div className="break-words text-jcf-gray text-sm">{program.description}</div>
             </div>
             <Link
               href={`/coach/templates/${program.id}`}
@@ -629,13 +629,13 @@ function AttemptLiftRow({
   const warmup = entry.opener ? generateWarmup(entry.opener, 2.5) : null;
   return (
     <div className="border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-display uppercase tracking-wide">{label}</div>
         <button type="button" onClick={onSuggest} className="text-[10px] uppercase tracking-widest text-jcf-gold hover:underline">
           Suggest from 1RM
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {(["opener", "second", "third"] as const).map((field) => (
           <div key={field}>
             <Input
@@ -918,9 +918,10 @@ function MeetPrepTmRow({
   return (
     <div className="border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
       <div className="text-sm font-display uppercase tracking-wide mb-2">{label}</div>
-      <div className="grid grid-cols-2 gap-3">
-        <Input label="1RM (kg)" type="number" value={oneRm} onChange={(e) => setOneRm(e.target.value)} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Input className="w-full min-w-0" label="1RM (kg)" type="number" value={oneRm} onChange={(e) => setOneRm(e.target.value)} />
         <Input
+          className="w-full min-w-0"
           label="Approved TM (kg)"
           type="number"
           value={approvedTm}
@@ -959,7 +960,7 @@ function ProgressTab({ measurements, prs }: { measurements: Measurement[]; prs: 
       <h3 className="text-xs uppercase tracking-widest text-jcf-gray mb-2">PR History</h3>
       <div className="flex flex-col gap-2">
         {[...prs].reverse().map((p) => (
-          <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex justify-between text-sm">
+          <div key={p.id} className="bg-jcf-panel border border-white/10 rounded-sm px-4 py-3 flex flex-col gap-1 text-sm sm:flex-row sm:justify-between sm:gap-3">
             <span>{p.lift}</span>
             <span className="text-jcf-gold">{p.weight} {p.unit ?? "lb"} x {p.reps}</span>
             <span className="text-jcf-gray">{p.date}</span>
@@ -983,7 +984,7 @@ function HistoryTab({ logs }: { logs: WorkoutLog[] }) {
               className="flex items-center justify-between w-full text-left"
               onClick={() => setExpanded(isOpen ? null : log.id)}
             >
-              <span className="text-sm">{log.day_label ?? "Workout"}</span>
+              <span className="min-w-0 break-words text-sm">{log.day_label ?? "Workout"}</span>
               <span className="text-jcf-gray text-xs">
                 {log.date} {isOpen ? "▲" : "▼"}
               </span>
@@ -991,9 +992,9 @@ function HistoryTab({ logs }: { logs: WorkoutLog[] }) {
             {isOpen && (
               <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-1.5">
                 {log.exercises_completed.map((ex, i) => (
-                  <div key={i} className="text-xs flex justify-between gap-3">
-                    <span className="text-white">{ex.name}</span>
-                    <span className="text-jcf-gray text-right">{formatSets(ex) || "—"}</span>
+                  <div key={i} className="text-xs flex min-w-0 flex-col justify-between gap-1 sm:flex-row sm:gap-3">
+                    <span className="min-w-0 break-words text-white">{ex.name}</span>
+                    <span className="text-jcf-gray text-left sm:text-right">{formatSets(ex) || "—"}</span>
                   </div>
                 ))}
                 {log.exercises_completed.length === 0 && (
@@ -1011,7 +1012,7 @@ function HistoryTab({ logs }: { logs: WorkoutLog[] }) {
 
 function BadgesTab({ achievements }: { achievements: Achievement[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {achievements.map((a) => (
         <div key={a.id} className="bg-jcf-gold/10 border border-jcf-gold/50 rounded-sm p-4">
           <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2 bg-jcf-gold text-jcf-black">
