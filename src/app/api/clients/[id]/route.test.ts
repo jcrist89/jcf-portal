@@ -100,6 +100,28 @@ describe("PATCH/DELETE /api/clients/[id]", () => {
     const res = await PATCH(fakeRequest({ tier: "paid_coaching" }), { params: Promise.resolve({ id: "client-1" }) });
     expect(res.status).toBe(403);
   });
+
+  it("preserves shared Rebuild authentication and progress on a portal delete request", async () => {
+    db.tables.reacher_accounts = [{ user_id: "client-1", status: "disabled" }];
+    db.tables.reacher_tracker_states = [{ user_id: "client-1", state: { logs: ["workout"] } }];
+    const { DELETE } = await import("./route");
+    const res = await DELETE(fakeRequest({ permanently: true }), { params: Promise.resolve({ id: "client-1" }) });
+    expect(res.status).toBe(409);
+    expect(db.deletedAuthUsers).toEqual([]);
+    expect(db.tables.profiles.find(p => p.id === "client-1")).toBeDefined();
+    expect(db.tables.reacher_tracker_states[0].state.logs).toEqual(["workout"]);
+  });
+
+  it("fails closed when shared account lookup fails", async () => {
+    const originalFrom = db.from.bind(db);
+    vi.spyOn(db, "from").mockImplementation((table: string) => table === "reacher_accounts"
+      ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "unavailable" } }) }) }) } as any
+      : originalFrom(table));
+    const { DELETE } = await import("./route");
+    const res = await DELETE(fakeRequest({ permanently: true }), { params: Promise.resolve({ id: "client-1" }) });
+    expect(res.status).toBe(503);
+    expect(db.deletedAuthUsers).toEqual([]);
+  });
 });
 
 // Regression: the coach's "Swap Program Template" control sent the template id
