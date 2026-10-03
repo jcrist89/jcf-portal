@@ -94,6 +94,16 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
 
   const body = typeof req.json === "function" ? await req.json().catch(() => null) : null;
   if (body?.permanently === true) {
+    // Auth is shared with The Rebuild. A portal profile can be created by the
+    // shared signup trigger even when this person only uses the tracker.
+    const { data: rebuildAccount, error: rebuildError } = await admin
+      .from("reacher_accounts").select("user_id").eq("user_id", params.id).maybeSingle();
+    if (rebuildError) {
+      return NextResponse.json({ error: "Could not verify shared account usage. Nothing was deleted." }, { status: 503 });
+    }
+    if (rebuildAccount) {
+      return NextResponse.json({ error: "This client has a Rebuild account. Deactivate the portal profile instead to preserve their login and progress." }, { status: 409 });
+    }
     // This is deliberately a hard delete. It removes the Supabase Auth user first,
     // which revokes refresh sessions and prevents the account from signing in again.
     // The profile is not FK-linked to auth.users in this legacy schema, so delete it
