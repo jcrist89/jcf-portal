@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "stripe": "npm:stripe@23.0.0",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2"
+  },
+  "nodeModulesDir": "none",
+  "tasks": {
+    "test": "deno test --deny-net --deny-env --deny-read --deny-write bridge_test.ts",
+    "check": "deno check index.ts bridge_test.ts"
+  }
+}

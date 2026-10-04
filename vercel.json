@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "security/jcf-stripe-bridge-signatures": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/nudge",

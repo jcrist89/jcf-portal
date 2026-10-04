@@ -1,0 +1,4 @@
+# Stripe authenticates this public webhook via its raw-body signature.
+[functions.jcf-stripe-bridge]
+verify_jwt = false
+entrypoint = "./functions/jcf-stripe-bridge/index.ts"
