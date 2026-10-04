@@ -36,3 +36,21 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+  stripe-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: supabase/functions/jcf-stripe-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.6
+      - name: Check pinned bridge dependencies and types
+        run: deno task --frozen check
+      - name: Test bridge without network or secret access
+        run: deno task --frozen test
+      - name: Lint bridge
+        run: deno lint
